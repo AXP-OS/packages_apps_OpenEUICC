@@ -95,15 +95,17 @@ class MainActivity : AppCompatActivity() {
             manager.enumerateEuiccChannels()
             manager.knownChannels.forEach {
                 Log.d(TAG, it.name)
-                Log.d(TAG, it.lpa.eid)
+                //Log.d(TAG, it.lpa.eid)
                 openEuiccApplication.subscriptionManager.tryRefreshCachedEuiccInfo(it.cardId)
             }
         }
 
         withContext(Dispatchers.Main) {
             manager.knownChannels.forEach { channel ->
+		if(!channel!!.ignore) {
                 spinnerAdapter.add(channel.name)
                 fragments.add(EuiccManagementFragment.newInstance(channel.slotId))
+                }
             }
 
             if (fragments.isNotEmpty()) {

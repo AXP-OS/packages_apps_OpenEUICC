@@ -67,12 +67,13 @@ class EuiccChannelManager(private val context: Context) {
                 uiccInfo.cardId,
                 "SIM ${uiccInfo.slotIndex}",
                 tm.getImei(uiccInfo.slotIndex) ?: return null,
-                uiccInfo.isRemovable
+                uiccInfo.isRemovable,
+                (uiccInfo.getEid() == null || uiccInfo.getEid().matches("^[0]+$".toRegex()))
             )
 
             var euiccChannel: EuiccChannel? = null
 
-            if (uiccInfo.isEuicc && !uiccInfo.isRemovable) {
+            if (uiccInfo.isEuicc && !uiccInfo.isRemovable && !channelInfo.ignore) {
                 Log.d(TAG, "Using TelephonyManager for slot ${uiccInfo.slotIndex}")
                 // TODO: On Tiramisu, we should also connect all available "ports" for MEP support
                 euiccChannel = TelephonyManagerChannel.tryConnect(tm, channelInfo)

@@ -80,7 +80,7 @@ class EuiccManagementFragment : Fragment(), EuiccFragmentMarker, EuiccProfilesCh
     @SuppressLint("NotifyDataSetChanged")
     private fun refresh() {
         swipeRefresh.isRefreshing = true
-
+        if(channel!!.ignore) { return }
         lifecycleScope.launch {
             val profiles = withContext(Dispatchers.IO) {
                 openEuiccApplication.subscriptionManager.tryRefreshCachedEuiccInfo(channel.cardId)
