@@ -2,7 +2,7 @@
     <!-- Base application theme. -->
     <style name="Theme.OpenEUICC" parent="Theme.MaterialComponents.DayNight">
         <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/white</item>
+        <item name="colorPrimary">@color/gray_300</item>
         <item name="colorPrimaryVariant">@color/gray_300</item>
         <item name="colorOnPrimary">@color/black</item>
         <!-- Secondary brand color. -->
