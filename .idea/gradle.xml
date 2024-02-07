@@ -8,14 +8,19 @@
         <option name="distributionType" value="DEFAULT_WRAPPED" />
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
         <option name="gradleHome" value="/usr/share/java/gradle" />
+        <option name="gradleJvm" value="jbr-17" />
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/app" />
+            <option value="$PROJECT_DIR$/app-common" />
+            <option value="$PROJECT_DIR$/app-deps" />
+            <option value="$PROJECT_DIR$/app-unpriv" />
+            <option value="$PROJECT_DIR$/buildSrc" />
             <option value="$PROJECT_DIR$/libs" />
             <option value="$PROJECT_DIR$/libs/hidden-apis-shim" />
             <option value="$PROJECT_DIR$/libs/hidden-apis-stub" />
-            <option value="$PROJECT_DIR$/libs/lpad-sm-dp-plus-connector" />
+            <option value="$PROJECT_DIR$/libs/lpac-jni" />
           </set>
         </option>
       </GradleProjectSettings>

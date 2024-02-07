@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="no_euicc">No eUICC card on this device is accessible by this app.\nInsert a supported eUICC card, or try out the privileged OpenEUICC app instead.</string>
+    <string name="unknown">Unknown</string>
+    <string name="help">Help</string>
+
+    <string name="channel_name_format">Logical Slot %d</string>
+
+    <string name="enabled">Enabled</string>
+    <string name="disabled">Disabled</string>
+    <string name="provider">Provider:</string>
+    <string name="iccid">ICCID:</string>
+
+    <string name="enable">Enable</string>
+    <string name="disable">Disable</string>
+    <string name="delete">Delete</string>
+    <string name="rename">Rename</string>
+
+    <string name="toast_profile_enable_failed">Cannot switch to new eSIM profile.</string>
+    <string name="toast_profile_name_too_long">Nickname cannot be longer than 64 characters</string>
+
+    <string name="slot_select">Select Slot</string>
+    <string name="slot_select_select">Select</string>
+
+    <string name="profile_download">New eSIM</string>
+    <string name="profile_download_server">Server (RSP / SM-DP+)</string>
+    <string name="profile_download_code">Activation Code</string>
+    <string name="profile_download_confirmation_code">Confirmation Code (Optional)</string>
+    <string name="profile_download_imei">IMEI (Optional)</string>
+    <string name="profile_download_free_space">Space remaining: %s</string>
+    <string name="profile_download_scan">Scan QR Code</string>
+    <string name="profile_download_ok">Download</string>
+    <string name="profile_download_failed">Failed to download eSIM. Check your activation / QR code.</string>
+
+    <string name="profile_rename_new_name">New nickname</string>
+
+    <string name="profile_delete_confirm">Are you sure you want to delete the profile %s? This operation is irreversible.</string>
+
+    <string name="profile_notifications">Profile Notifications</string>
+    <string name="profile_notifications_show">Manage Notifications</string>
+    <string name="profile_notifications_help">eSIM profiles can send notifications to the carrier when they are downloaded, deleted, enabled, or disabled. The queue of these notifications to be sent is listed here.\n\nIn Settings, you can specify whether to send each type of notification automatically. Note that even if a notification has been sent, it will not be deleted automatically from the record, unless the queue runs out of space.\n\nHere, you can manually send or delete each pending notification.</string>
+    <string name="profile_notification_operation_download">Downloaded</string>
+    <string name="profile_notification_operation_delete">Deleted</string>
+    <string name="profile_notification_operation_enable">Enabled</string>
+    <string name="profile_notification_operation_disable">Disabled</string>
+    <string name="profile_notification_name_format">&lt;b&gt;%1$s&lt;/b&gt; %2$s (%3$s)</string>
+    <string name="profile_notification_process">Process</string>
+    <string name="profile_notification_delete">Delete</string>
+
+    <string name="pref_settings">Settings</string>
+    <string name="pref_notifications">Notifications</string>
+    <string name="pref_notifications_desc">eSIM profile operations send notifications to the carrier. Fine-tune this behavior as needed here.</string>
+    <string name="pref_notifications_download">Downloads</string>
+    <string name="pref_notifications_download_desc">Send notifications for <i>downloading</i> profiles</string>
+    <string name="pref_notifications_delete">Deletion</string>
+    <string name="pref_notifications_delete_desc">Send notifications for <i>deleting</i> profiles</string>
+    <string name="pref_notifications_enable">Enabling</string>
+    <string name="pref_notifications_enable_desc">Send notifications for <i>enabling</i> profiles\nNote that this type of notification is unreliable.</string>
+    <string name="pref_notifications_disable">Disabling</string>
+    <string name="pref_notifications_disable_desc">Send notifications for <i>disabling</i> profiles\nNote that this type of notification is unreliable.</string>
+    <string name="pref_info">Info</string>
+    <string name="pref_info_app_version">App Version</string>
+    <string name="pref_info_source_code">Source Code</string>
+    <string name="pref_info_source_code_url" translatable="false">https://gitea.angry.im/PeterCxy/OpenEUICC</string>
+</resources>

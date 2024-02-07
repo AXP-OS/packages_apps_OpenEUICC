@@ -1,31 +1,56 @@
-android_app {
-    name: "OpenEUICC",
+java_library {
+    name: "net.typeblog.lpac_jni",
+    srcs: [
+        "libs/lpac-jni/src/main/**/*.kt",
+    ],
+    optimize: {
+        enabled: false,
+    },
     static_libs: [
-        // Dependencies that must be pulled from maven
-        "asn1bean-prebuilt-jar",
-        "zxing-core-prebuilt-jar",
-        "zxing-android-embedded-prebuilt-aar",
+        "kotlinx_coroutines",
+    ],
+    system_ext_specific: true,
+}
 
-        // Dependencies included with AOSP
-        "androidx.appcompat_appcompat",
-        "androidx.cardview_cardview",
-        "androidx-constraintlayout_constraintlayout",
-        "androidx.core_core-ktx",
-        "androidx.lifecycle_lifecycle-runtime-ktx",
-        "androidx.swiperefreshlayout_swiperefreshlayout",
-        "com.google.android.material_material",
-        "gson-prebuilt-jar-2.9.1",
+android_library {
+    name: "OpenEUICC-common",
+    defaults: [
+        "OpenEUICC-deps-defaults",
+    ],
+    static_libs: [
+        "net.typeblog.lpac_jni",
         "kotlinx_coroutines",
     ],
     srcs: [
-        // Main app
-        "app/src/main/**/*.kt",
-
-        // TruPhone LPAd library
-        "libs/lpad-sm-dp-plus-connector/src/generated/**/*.java",
-        "libs/lpad-sm-dp-plus-connector/src/main/**/*.java",
-        "libs/lpad-sm-dp-plus-connector/src/main/**/*.kt",
+        "app-common/src/main/**/*.kt",
     ],
+    optimize: {
+        enabled: false,
+    },
+    resource_dirs: [
+        "app-common/src/main/res",
+    ],
+    kotlincflags: [
+        "-opt-in=kotlin.ExperimentalStdlibApi",
+    ],
+    manifest: "app-common/src/main/AndroidManifest.xml",
+    system_ext_specific: true,
+}
+
+android_app {
+    name: "OpenEUICC",
+    static_libs: [
+        "OpenEUICC-common",
+    ],
+    jni_libs: [
+        "liblpac-jni",
+    ],
+    srcs: [
+        "app/src/main/**/*.kt",
+    ],
+    optimize: {
+        enabled: false,
+    },
     resource_dirs: [
         "app/src/main/res",
     ],
