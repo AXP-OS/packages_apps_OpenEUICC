@@ -82,7 +82,7 @@ jobs:
       with:
         repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
         automatic_release_tag: "latest"
-        prerelease: true
+        prerelease: false
         title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
         files: |
           ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk
