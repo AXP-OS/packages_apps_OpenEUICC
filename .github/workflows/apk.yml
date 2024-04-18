@@ -1,7 +1,6 @@
-name: Build OpenEUICC
+name: Build Open- & EasyEUICC
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -35,10 +34,19 @@ jobs:
     - name: Build Release APK (privileged + unprivileged)
       run: |
         mkdir apks
+        # hidden from app drawer version
+        ./gradlew --no-daemon --stacktrace :app:assembleRelease
+        mv -v app/build/outputs/apk/release/*.apk apks/OpenEUICC_hidden.apk
+        
+        # easyeuicc
+        ./gradlew --no-daemon --stacktrace :app-unpriv:assembleRelease
+        mv -v app-unpriv/build/outputs/apk/release/*.apk apks/EasyEUICC.apk
+        
+        # regular version (shown in app drawer)
+        rm -rf app/build/outputs/apk/
+        git revert -n 84e35d192ec96591dae82c91
         ./gradlew --no-daemon --stacktrace :app:assembleRelease
         mv -v app/build/outputs/apk/release/*.apk apks/OpenEUICC.apk
-        ./gradlew --no-daemon --stacktrace :app-unpriv:assembleRelease
-        mv -v app-unpriv/build/outputs/apk/release/*.apk apks/EasyEUICC.apk     
 
     # https://github.com/r0adkll/sign-android-release/issues/84#issuecomment-1885690080
     - name: "Get & set app and build variables"
@@ -75,6 +83,7 @@ jobs:
       run: |
         cd apks
         sha256sum OpenEUICC-signed.apk > OpenEUICC-signed.apk.sha256
+        sha256sum OpenEUICC_hidden-signed.apk > OpenEUICC_hidden-signed.apk.sha256
         sha256sum EasyEUICC-signed.apk > EasyEUICC-signed.apk.sha256  
         
     - name: Upload signed APKs
@@ -89,6 +98,8 @@ jobs:
           ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk.sha256
           ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk
           ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk.sha256
+          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
+          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
 
     - name: Upload signed APKs (latest)
       uses: "marvinpinto/action-automatic-releases@latest"
@@ -102,3 +113,5 @@ jobs:
           ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk.sha256
           ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk
           ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk.sha256
+          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
+          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
