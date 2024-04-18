@@ -35,6 +35,8 @@ jobs:
       run: |
         git fetch
         git revert -n 84e35d192ec96591dae82c911fc22142f7be13db
+        git status
+        git diff
         false
         
         mkdir apks
