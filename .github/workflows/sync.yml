@@ -42,7 +42,7 @@ jobs:
         upstream_sync_repo: PeterCxy/OpenEUICC
         #upstream_repo_access_token: ${{ secrets.UPSTREAM_REPO_SECRET }}
         shallow_since: '3 years ago'
-        git_config_pull_rebase: true
+        #git_config_pull_rebase: true
         git_config_user: AXP-bot
         # Set test_mode true to run tests instead of the true action!!
         test_mode: false
