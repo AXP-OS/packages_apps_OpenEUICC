@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - testci
+      - mixed
 
 jobs:
   build:
@@ -69,6 +69,7 @@ jobs:
 
     # https://github.com/r0adkll/sign-android-release
     - name: Sign apks
+      if: github.ref_name == 'main'
       id: signAPK
       uses: r0adkll/sign-android-release@master
       with:
@@ -81,6 +82,7 @@ jobs:
         BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
 
     - name: Hash release APKs (privileged + unprivileged)
+      if: github.ref_name == 'main'
       run: |
         cd apks
         sha256sum OpenEUICC-signed.apk > OpenEUICC-signed.apk.sha256
@@ -88,6 +90,7 @@ jobs:
         sha256sum EasyEUICC-signed.apk > EasyEUICC-signed.apk.sha256  
         
     - name: Upload signed APKs
+      if: github.ref_name == 'main'
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
@@ -103,6 +106,7 @@ jobs:
           ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
 
     - name: Upload signed APKs (latest)
+      if: github.ref_name == 'main'
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
