@@ -2,10 +2,6 @@ on:
   push:
     tags: '*'
 
-env:
-  # Enable reproducibility-related build system workarounds
-  REPRODUCIBLE_BUILD: true
-
 jobs:
   release:
     runs-on: [docker, android-app-certs]
@@ -17,6 +13,7 @@ jobs:
         uses: https://gitea.angry.im/actions/checkout@v3
         with:
           submodules: recursive
+          fetch-depth: 0
 
       - name: Decode Secret Signing Configuration
         uses: https://gitea.angry.im/actions/base64-to-file@v1
@@ -36,6 +33,9 @@ jobs:
 
       - name: Build Release APK (Unprivileged / EasyEUICC only)
         run: ./gradlew --no-daemon :app-unpriv:assembleRelease
+
+      - name: Copy Debug Symbols to Release Path
+        run: cp app-unpriv/build/outputs/native-debug-symbols/jmpRelease/native-debug-symbols.zip app-unpriv/build/outputs/apk/jmp/release/
 
       - name: Create Release
         uses: https://gitea.angry.im/actions/forgejo-release@v1
