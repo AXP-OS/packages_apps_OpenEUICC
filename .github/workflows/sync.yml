@@ -41,7 +41,7 @@ jobs:
         git_config_pull_rebase: true
         git_config_user: AXP-bot
         # Set test_mode true to run tests instead of the true action!!
-        test_mode: true
+        test_mode: false
       
     # Step 3: Display a sample message based on the sync output var 'has_new_commits'
     - name: New commits found
