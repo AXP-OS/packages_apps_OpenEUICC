@@ -6,6 +6,10 @@ on:
     - cron:  '0 0 * * *'
   workflow_dispatch:  # button shown only when in default branch
 
+# Sets permissions of the GITHUB_TOKEN to allow pushing via github token
+permissions:
+  contents: write # allow git push
+
 jobs:
   sync_latest_from_upstream:
     runs-on: ubuntu-latest
