@@ -9,19 +9,20 @@ on:
 jobs:
   sync_latest_from_upstream:
     runs-on: ubuntu-latest
-    name: Sync latest commits from upstream repo
+    name: Sync
 
     steps:
     # REQUIRED step
     # Step 1: run a standard checkout action, provided by github
-    - name: Checkout target repo
-      uses: actions/checkout@v3
+    - name: Checkout my repo
+      uses: actions/checkout@v4
       with:
         # optional: set the branch to checkout,
         # sync action checks out your 'target_sync_branch' anyway
         ref:  mixed
         # REQUIRED if your upstream repo is private (see wiki)
-        persist-credentials: true
+        persist-credentials: false
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     # REQUIRED step
     # Step 2: run the sync action
