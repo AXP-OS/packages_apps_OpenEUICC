@@ -35,7 +35,8 @@ jobs:
         upstream_sync_branch: master
         upstream_sync_repo_domain: "gitea.angry.im"
         upstream_sync_repo: PeterCxy/OpenEUICC
-        upstream_repo_access_token: ${{ secrets.UPSTREAM_REPO_SECRET }}
+        #upstream_repo_access_token: ${{ secrets.UPSTREAM_REPO_SECRET }}
+        shallow_since: '3 years ago'
 
         # Set test_mode true to run tests instead of the true action!!
         test_mode: false
