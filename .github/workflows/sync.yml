@@ -41,7 +41,7 @@ jobs:
         upstream_sync_repo_domain: "gitea.angry.im"
         upstream_sync_repo: PeterCxy/OpenEUICC
         #upstream_repo_access_token: ${{ secrets.UPSTREAM_REPO_SECRET }}
-        shallow_since: '2 days ago'
+        shallow_since: '3 years ago'
         # Set test_mode true to run tests instead of the true action!!
         test_mode: false
       
@@ -49,10 +49,15 @@ jobs:
     - name: "New commits found?"
       if: steps.sync.outputs.has_new_commits == 'true'
       run: echo "New commits were found to sync."
-    
-    #- name: No new commits
-    #  if: steps.sync.outputs.has_new_commits == 'false'
-    #  run: echo "There were no new commits."
-      
-    #- name: Show value of 'has_new_commits'
-    #  run: echo ${{ steps.sync.outputs.has_new_commits }}
+
+    # Step 4: Merge with main branch when new commits were found (triggers main workflow to build packages)
+    - name: "Merge mixed -> main"
+      if: steps.sync.outputs.has_new_commits == 'true'
+      uses: devmasx/merge-branch@master
+      with:
+          type: now
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          from_branch: mixed
+          target_branch: main
+          message: "merge with upstream"
+ 
