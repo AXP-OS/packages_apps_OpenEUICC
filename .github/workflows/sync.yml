@@ -19,7 +19,7 @@ jobs:
       with:
         # optional: set the branch to checkout,
         # sync action checks out your 'target_sync_branch' anyway
-        ref:  mixed
+        ref: mixed
         # REQUIRED if your upstream repo is private (see wiki)
         persist-credentials: true
         token: ${{ secrets.GITHUB_TOKEN }}
@@ -40,7 +40,7 @@ jobs:
         shallow_since: '3 years ago'
 
         # Set test_mode true to run tests instead of the true action!!
-        test_mode: false
+        test_mode: true
       
     # Step 3: Display a sample message based on the sync output var 'has_new_commits'
     - name: New commits found
