@@ -1,63 +1,22 @@
-# https://github.com/marketplace/actions/fork-repo-upstream-sync
-name: "Sync upstream"
+name: "Sync"
 
 on:
-  #schedule:
-   # - cron:  '0 0 * * *'  # run once per day at midnight
-  workflow_dispatch:  # button shown only when in default branch
+  workflow_dispatch:
+  schedule:
+    - cron:  '34 19 * * *'  # adjust if needed
 
 # Sets permissions of the GITHUB_TOKEN to allow pushing via github token
 permissions:
   contents: write # allow git push
 
 jobs:
-  sync_latest_from_upstream:
-    runs-on: ubuntu-latest
-    name: Sync
-
-    steps:
-    # REQUIRED step
-    # Step 1: run a standard checkout action, provided by github
-    - name: Checkout my repo
-      uses: actions/checkout@v4
-      with:
-        # optional: set the branch to checkout,
-        # sync action checks out your 'target_sync_branch' anyway
-        ref: mixed
-        # REQUIRED if your upstream repo is private (see wiki)
-        persist-credentials: false
-        #token: ${{ secrets.GITHUB_TOKEN }}
-
-    # REQUIRED step
-    # Step 2: run the sync action
-    - name: Sync upstream changes
-      id: sync
-      uses: Swisyn/fork-sync-with-upstream-action@v1.0.0
-      with:
-        target_sync_branch: mixed
-        # REQUIRED 'target_repo_token' exactly like this!
-        target_repo_token: ${{ secrets.GITHUB_TOKEN }}
-        upstream_sync_branch: master
-        upstream_sync_repo_domain: "gitea.angry.im"
-        upstream_sync_repo: PeterCxy/OpenEUICC
-        #upstream_repo_access_token: ${{ secrets.UPSTREAM_REPO_SECRET }}
-        shallow_since: '3 years ago'
-        # Set test_mode true to run tests instead of the true action!!
-        test_mode: false
-      
-    # Step 3: Display a message based on the sync output var 'has_new_commits'
-    - name: "New commits found?"
-      if: steps.sync.outputs.has_new_commits == 'true'
-      run: echo "New commits were found to sync."
-
-    # Step 4: Merge with main branch when new commits were found (triggers main workflow to build packages)
-    - name: "Merge mixed -> main"
-      if: steps.sync.outputs.has_new_commits == 'true'
-      uses: devmasx/merge-branch@master
-      with:
-          type: now
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          from_branch: mixed
-          target_branch: main
-          message: "merge with upstream"
- 
+  call-org-workflow:
+    name: "Calling AXP workflow"
+    uses: AXP-OS/.github/.github/workflows/sync_upstream.yml@main
+    with:
+        remote-repo: https://gitea.angry.im/PeterCxy/OpenEUICC  # <- remote repo name (e.g. LineageOS/foo)
+        remote-branch:  master # <- remote branch name
+        local-repo: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+        local-branch: "main"
+        dryrun: true  # <- set to false after a test run
+    secrets: inherit
