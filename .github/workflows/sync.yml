@@ -19,5 +19,5 @@ jobs:
         remote-branch:  master # <- remote branch name
         local-repo: ${{ github.repository_owner }}/${{ github.event.repository.name }}
         local-branch: "main"
-        dryrun: true  # <- set to false after a test run
+        dryrun: false  # <- set to false after a test run
     secrets: inherit
