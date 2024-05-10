@@ -14,7 +14,7 @@ jobs:
     name: "Calling AXP workflow"
     uses: AXP-OS/.github/.github/workflows/sync_upstream.yml@main
     with:
-        remote-server: https://gitea.angry.im
+        remote-server: gitea.angry.im
         remote-repo: PeterCxy/OpenEUICC  # <- remote repo name (e.g. LineageOS/foo)
         remote-branch:  master # <- remote branch name
         local-repo: ${{ github.repository_owner }}/${{ github.event.repository.name }}
