@@ -7,6 +7,7 @@ on:
   pull_request:
     types:
       - closed
+  workflow_call:      # we want to be triggered from the sync workflow
   workflow_dispatch:  # button shown only when in default branch
 
 jobs:
