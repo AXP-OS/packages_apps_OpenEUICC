@@ -3,7 +3,7 @@ name: "Sync"
 on:
   workflow_dispatch:
   schedule:
-    - cron:  '34 19 * * *'  # adjust if needed
+    - cron:  '5 10 * * *'  # adjust if needed
 
 # Sets permissions of the GITHUB_TOKEN to allow pushing via github token
 permissions:
@@ -21,3 +21,8 @@ jobs:
         local-branch: "main"
         dryrun: false  # <- set to false after a test run
     secrets: inherit
+
+  call-build-wf:
+    name: "Trigger APK build"
+    uses: .github/workflows/apk.yml@main
+    if: steps.sync.outputs.has_new_commits == 'true'
