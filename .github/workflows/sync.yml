@@ -2,7 +2,7 @@ name: "Sync"
 
 on:
   schedule:
-    - cron:  '35 10 * * *'
+    - cron:  '27 11 * * *'
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow pushing via github token
@@ -24,21 +24,10 @@ jobs:
 
   call-build-wf:
     runs-on: ubuntu-latest
+    needs: call-org-workflow
     
     steps:
-    
-      - name: "Download commit result"
-        uses: actions/download-artifact@v4
-        with:
-          name: commit_result
-
-      - name: "Check result"
-        shell: bash
-        id: cmres
-        run: |
-          source cm.res
-          echo "commit_result=$new_commits" >> $GITHUB_ENV
-          
+         
       - name: "Trigger APK build"
-        if: "${{ env.commit_result }}"
+        if: "${{ needs.call-org-workflow.outputs.commitcheck }}"
         uses: ./.github/workflows/apk.yml
