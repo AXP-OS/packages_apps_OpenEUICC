@@ -39,11 +39,11 @@ class SettingsFragment: PreferenceFragmentCompat() {
         findPreference<CheckBoxPreference>("pref_notifications_delete")
             ?.bindBooleanFlow(preferenceRepository.notificationDeleteFlow, PreferenceKeys.NOTIFICATION_DELETE)
 
-        findPreference<CheckBoxPreference>("pref_notifications_enable")
-            ?.bindBooleanFlow(preferenceRepository.notificationEnableFlow, PreferenceKeys.NOTIFICATION_ENABLE)
+        findPreference<CheckBoxPreference>("pref_notifications_switch")
+            ?.bindBooleanFlow(preferenceRepository.notificationSwitchFlow, PreferenceKeys.NOTIFICATION_SWITCH)
 
-        findPreference<CheckBoxPreference>("pref_notifications_disable")
-            ?.bindBooleanFlow(preferenceRepository.notificationDisableFlow, PreferenceKeys.NOTIFICATION_DISABLE)
+        findPreference<CheckBoxPreference>("pref_advanced_disable_safeguard_removable_esim")
+            ?.bindBooleanFlow(preferenceRepository.disableSafeguardFlow, PreferenceKeys.DISABLE_SAFEGUARD_REMOVABLE_ESIM)
     }
 
     private fun CheckBoxPreference.bindBooleanFlow(flow: Flow<Boolean>, key: Preferences.Key<Boolean>) {

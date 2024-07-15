@@ -1,5 +1,4 @@
-{Open,Easy}EUICC
----
+<img src="https://gitea.angry.im/PeterCxy/OpenEUICC/media/branch/master/art/OpenEUICCBG.svg" width="512" height="300">
 
 A fully free and open-source Local Profile Assistant implementation for Android devices.
 
@@ -78,14 +77,14 @@ FAQs
 Copyright
 ===
 
-Everything except `libs/lpac-jni`:
+Everything except `libs/lpac-jni` and `art/`:
 
 ```
 Copyright 2022-2024 OpenEUICC contributors
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation, version 2.
+as published by the Free Software Foundation, version 3.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -115,3 +114,5 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 ```
+
+`art/`: Courtesy of [Aikoyori](https://github.com/Aikoyori), CC NC-SA 4.0.

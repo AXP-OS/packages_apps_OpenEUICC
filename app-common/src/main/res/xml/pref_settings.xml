@@ -16,19 +16,20 @@
             app:key="pref_notifications_delete" />
         <CheckBoxPreference
             app:iconSpaceReserved="false"
-            app:title="@string/pref_notifications_enable"
-            app:summary="@string/pref_notifications_enable_desc"
-            app:key="pref_notifications_enable" />
-        <CheckBoxPreference
-            app:iconSpaceReserved="false"
-            app:title="@string/pref_notifications_disable"
-            app:summary="@string/pref_notifications_disable_desc"
-            app:key="pref_notifications_disable" />
+            app:title="@string/pref_notifications_switch"
+            app:summary="@string/pref_notifications_switch_desc"
+            app:key="pref_notifications_switch" />
     </im.angry.openeuicc.ui.preference.LongSummaryPreferenceCategory>
 
     <PreferenceCategory
         app:title="@string/pref_advanced"
         app:iconSpaceReserved="false">
+        <CheckBoxPreference
+            app:key="pref_advanced_disable_safeguard_removable_esim"
+            app:iconSpaceReserved="false"
+            app:title="@string/pref_advanced_disable_safeguard_removable_esim"
+            app:summary="@string/pref_advanced_disable_safeguard_removable_esim_desc" />
+
         <Preference
             app:key="pref_advanced_logs"
             app:iconSpaceReserved="false"

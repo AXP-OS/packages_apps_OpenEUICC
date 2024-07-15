@@ -25,10 +25,13 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import net.typeblog.lpac_jni.LocalProfileInfo
 import im.angry.openeuicc.common.R
+import im.angry.openeuicc.core.EuiccChannelManager
 import im.angry.openeuicc.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -46,6 +49,14 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
     private lateinit var profileList: RecyclerView
 
     private val adapter = EuiccProfileAdapter()
+
+    // Marker for when this fragment might enter an invalid state
+    // e.g. after a failed enable / disable operation
+    private var invalid = false
+
+    // Subscribe to settings we care about outside of coroutine contexts while initializing
+    // This gives us access to the "latest" state without having to launch coroutines
+    private lateinit var disableSafeguardFlow: StateFlow<Boolean>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,10 +88,7 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
             ProfileDownloadFragment.newInstance(slotId, portId)
                 .show(childFragmentManager, ProfileDownloadFragment.TAG)
         }
-    }
 
-    override fun onStart() {
-        super.onStart()
         refresh()
     }
 
@@ -102,24 +110,40 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
                 }
                 true
             }
+
             else -> super.onOptionsItemSelected(item)
         }
 
-    protected open suspend fun onCreateFooterViews(parent: ViewGroup): List<View> = listOf()
+    protected open suspend fun onCreateFooterViews(
+        parent: ViewGroup,
+        profiles: List<LocalProfileInfo>
+    ): List<View> =
+        if (profiles.isEmpty()) {
+            val view = layoutInflater.inflate(R.layout.footer_no_profile, parent, false)
+            listOf(view)
+        } else {
+            listOf()
+        }
 
     @SuppressLint("NotifyDataSetChanged")
     private fun refresh() {
+        if (invalid) return
         swipeRefresh.isRefreshing = true
 
         lifecycleScope.launch {
+            if (!this@EuiccManagementFragment::disableSafeguardFlow.isInitialized) {
+                disableSafeguardFlow =
+                    preferenceRepository.disableSafeguardFlow.stateIn(lifecycleScope)
+            }
+
             val profiles = withContext(Dispatchers.IO) {
                 euiccChannelManager.notifyEuiccProfilesChanged(channel.logicalSlotId)
-                channel.lpa.profiles
+                channel.lpa.profiles.operational
             }
 
             withContext(Dispatchers.Main) {
-                adapter.profiles = profiles.operational
-                adapter.footerViews = onCreateFooterViews(profileList)
+                adapter.profiles = profiles
+                adapter.footerViews = onCreateFooterViews(profileList, profiles)
                 adapter.notifyDataSetChanged()
                 swipeRefresh.isRefreshing = false
             }
@@ -132,26 +156,34 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
 
         lifecycleScope.launch {
             beginTrackedOperation {
-                val res = if (enable) {
-                    channel.lpa.enableProfile(iccid)
-                } else {
-                    channel.lpa.disableProfile(iccid)
-                }
+                val (res, refreshed) =
+                    if (!channel.lpa.switchProfile(iccid, enable, refresh = true)) {
+                        // Sometimes, we *can* enable or disable the profile, but we cannot
+                        // send the refresh command to the modem because the profile somehow
+                        // makes the modem "busy". In this case, we can still switch by setting
+                        // refresh to false, but then the switch cannot take effect until the
+                        // user resets the modem manually by toggling airplane mode or rebooting.
+                        Pair(channel.lpa.switchProfile(iccid, enable, refresh = false), false)
+                    } else {
+                        Pair(true, true)
+                    }
 
                 if (!res) {
                     Log.d(TAG, "Failed to enable / disable profile $iccid")
-                    Toast.makeText(context, R.string.toast_profile_enable_failed, Toast.LENGTH_LONG)
-                        .show()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            context,
+                            R.string.toast_profile_enable_failed,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                     return@beginTrackedOperation false
                 }
 
-                try {
-                    euiccChannelManager.waitForReconnect(slotId, portId, timeoutMillis = 30 * 1000)
-                } catch (e: TimeoutCancellationException) {
+                if (!refreshed && !isUsb) {
                     withContext(Dispatchers.Main) {
-                        // Timed out waiting for SIM to come back online, we can no longer assume that the LPA is still valid
                         AlertDialog.Builder(requireContext()).apply {
-                            setMessage(R.string.enable_disable_timeout)
+                            setMessage(R.string.switch_did_not_refresh)
                             setPositiveButton(android.R.string.ok) { dialog, _ ->
                                 dialog.dismiss()
                                 requireActivity().finish()
@@ -162,14 +194,38 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
                             show()
                         }
                     }
-                    return@beginTrackedOperation false
+                    return@beginTrackedOperation true
                 }
 
-                if (enable) {
-                    preferenceRepository.notificationEnableFlow.first()
-                } else {
-                    preferenceRepository.notificationDisableFlow.first()
+                if (!isUsb) {
+                    try {
+                        euiccChannelManager.waitForReconnect(
+                            slotId,
+                            portId,
+                            timeoutMillis = 30 * 1000
+                        )
+                    } catch (e: TimeoutCancellationException) {
+                        withContext(Dispatchers.Main) {
+                            // Prevent this Fragment from being used again
+                            invalid = true
+                            // Timed out waiting for SIM to come back online, we can no longer assume that the LPA is still valid
+                            AlertDialog.Builder(requireContext()).apply {
+                                setMessage(R.string.enable_disable_timeout)
+                                setPositiveButton(android.R.string.ok) { dialog, _ ->
+                                    dialog.dismiss()
+                                    requireActivity().finish()
+                                }
+                                setOnDismissListener { _ ->
+                                    requireActivity().finish()
+                                }
+                                show()
+                            }
+                        }
+                        return@beginTrackedOperation false
+                    }
                 }
+
+                preferenceRepository.notificationSwitchFlow.first()
             }
             refresh()
             fab.isEnabled = true
@@ -181,6 +237,13 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         if (profile.isEnabled) {
             popup.menu.findItem(R.id.enable).isVisible = false
             popup.menu.findItem(R.id.delete).isVisible = false
+
+            // We hide the disable option by default to avoid "bricking" some cards that won't get
+            // recognized again by the phone's modem. However we don't have that worry if we are
+            // accessing it through a USB card reader, or when the user explicitly opted in
+            if (isUsb || disableSafeguardFlow.value) {
+                popup.menu.findItem(R.id.disable).isVisible = true
+            }
         }
     }
 
@@ -197,6 +260,13 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
     }
 
     inner class FooterViewHolder: ViewHolder(FrameLayout(requireContext())) {
+        init {
+            itemView.layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
         fun attach(view: View) {
             view.parent?.let { (it as ViewGroup).removeView(view) }
             (itemView as FrameLayout).addView(view)
@@ -245,6 +315,9 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         }
 
         private fun showOptionsMenu() {
+            // Prevent users from doing multiple things at once
+            if (invalid || swipeRefresh.isRefreshing) return
+
             PopupMenu(root.context, profileMenu).apply {
                 setOnMenuItemClickListener(::onMenuItemClicked)
                 populatePopupWithProfileActions(this, profile)

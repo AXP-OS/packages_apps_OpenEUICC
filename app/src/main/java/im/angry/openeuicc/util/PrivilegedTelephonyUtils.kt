@@ -22,7 +22,7 @@ fun TelephonyManager.setDsdsEnabled(euiccManager: EuiccChannelManager, enabled: 
     // Disable all eSIM profiles before performing a DSDS switch (only for internal eSIMs)
     knownChannels.forEach {
         if (!it.removable) {
-            it.lpa.disableActiveProfileWithUndo()
+            it.lpa.disableActiveProfileWithUndo(false)
         }
     }
 
@@ -45,7 +45,7 @@ fun TelephonyManager.updateSimSlotMapping(
     val undo = unmapped.mapNotNull { mapping ->
         euiccManager.findEuiccChannelByPortBlocking(mapping.physicalSlotIndex, mapping.portIndex)?.let { channel ->
             if (!channel.removable) {
-                return@mapNotNull channel.lpa.disableActiveProfileWithUndo()
+                return@mapNotNull channel.lpa.disableActiveProfileWithUndo(false)
             } else {
                 // Do not do anything for external eUICCs -- we can't really trust them to work properly
                 // with no profile enabled.
@@ -74,11 +74,12 @@ fun SubscriptionManager.tryRefreshCachedEuiccInfo(cardId: Int) {
 }
 
 // Every EuiccChannel we use here should be backed by a RealUiccPortInfoCompat
+// except when it is from a USB card reader
 val EuiccChannel.removable
-    get() = (port as RealUiccPortInfoCompat).card.isRemovable
+    get() = (port as? RealUiccPortInfoCompat)?.card?.isRemovable ?: true
 
 val EuiccChannel.cardId
-    get() = (port as RealUiccPortInfoCompat).card.cardId
+    get() = (port as? RealUiccPortInfoCompat)?.card?.cardId ?: -1
 
 val EuiccChannel.isMEP
-    get() = (port as RealUiccPortInfoCompat).card.isMultipleEnabledProfilesSupported
+    get() = (port as? RealUiccPortInfoCompat)?.card?.isMultipleEnabledProfilesSupported ?: false

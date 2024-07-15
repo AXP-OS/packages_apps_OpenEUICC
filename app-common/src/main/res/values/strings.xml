@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="no_euicc">No removable eUICC card accessible by this app is detected on this device.</string>
+    <string name="no_euicc">No removable eUICC card accessible by this app is detected on this device. Insert a compatible card or a USB reader.</string>
+    <string name="no_profile">No profiles (yet) on this eSIM.</string>
     <string name="unknown">Unknown</string>
     <string name="help">Help</string>
+    <string name="reload">Reload Slots</string>
 
     <string name="channel_name_format">Logical Slot %d</string>
 
@@ -16,13 +18,18 @@
     <string name="delete">Delete</string>
     <string name="rename">Rename</string>
 
-    <string name="enable_disable_timeout">Timed out waiting for the eSIM chip to switch profiles. You might want to restart the application or even the phone.</string>
+    <string name="enable_disable_timeout">Timed out waiting for the eSIM chip to switch profiles. This may be a bug in your phone\'s modem firmware. Try toggling airplane mode, restarting the application, or rebooting the phone.</string>
+    <string name="switch_did_not_refresh">The operation was successful, but your phone\'s modem refused to refresh. You might need to toggle airplane mode or reboot in order to use the new profile.</string>
 
     <string name="toast_profile_enable_failed">Cannot switch to new eSIM profile.</string>
     <string name="toast_profile_name_too_long">Nickname cannot be longer than 64 characters</string>
 
     <string name="slot_select">Select Slot</string>
     <string name="slot_select_select">Select</string>
+
+    <string name="usb_permission">Grant USB permission</string>
+    <string name="usb_permission_needed">Permission is needed to access the USB smart card reader.</string>
+    <string name="usb_failed">Cannot connect to eSIM via a USB smart card reader.</string>
 
     <string name="profile_download">New eSIM</string>
     <string name="profile_download_server">Server (RSP / SM-DP+)</string>
@@ -61,11 +68,11 @@
     <string name="pref_notifications_download_desc">Send notifications for <i>downloading</i> profiles</string>
     <string name="pref_notifications_delete">Deletion</string>
     <string name="pref_notifications_delete_desc">Send notifications for <i>deleting</i> profiles</string>
-    <string name="pref_notifications_enable">Enabling</string>
-    <string name="pref_notifications_enable_desc">Send notifications for <i>enabling</i> profiles\nNote that this type of notification is unreliable.</string>
-    <string name="pref_notifications_disable">Disabling</string>
-    <string name="pref_notifications_disable_desc">Send notifications for <i>disabling</i> profiles\nNote that this type of notification is unreliable.</string>
+    <string name="pref_notifications_switch">Switching</string>
+    <string name="pref_notifications_switch_desc">Send notifications for <i>switching</i> profiles\nNote that this type of notification is unreliable.</string>
     <string name="pref_advanced">Advanced</string>
+    <string name="pref_advanced_disable_safeguard_removable_esim">Disable Safeguards for Removable eSIMs</string>
+    <string name="pref_advanced_disable_safeguard_removable_esim_desc">By default, this app prevents you from disabling the active profile on a removable eSIM inserted in the device, because doing so may <i>sometimes</i> render it inaccessible.\nCheck this box to <i>remove</i> this safeguard.</string>
     <string name="pref_advanced_logs">Logs</string>
     <string name="pref_advanced_logs_desc">View recent debug logs of the application</string>
     <string name="pref_info">Info</string>
