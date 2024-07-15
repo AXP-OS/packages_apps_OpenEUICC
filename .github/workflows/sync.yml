@@ -1,9 +1,9 @@
 name: "Sync"
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron:  '46 17 * * *'
+    - cron:  '56 8 * * *'
+  workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow pushing via github token
 permissions:
