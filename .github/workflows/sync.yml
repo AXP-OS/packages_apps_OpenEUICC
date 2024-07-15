@@ -23,6 +23,22 @@ jobs:
     secrets: inherit
 
   call-build-wf:
-    name: "Trigger APK build"
-    uses: ./.github/workflows/apk.yml
-    if: steps.sync.outputs.has_new_commits == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+    
+      - name: "Download commit result"
+        uses: actions/download-artifact@v4
+        with:
+          name: commit_result
+
+      - name: "Check result"
+        shell: bash
+        id: cmres
+        run: |
+          source cm.res
+          echo "commit_result=$new_commits" >> $GITHUB_ENV
+          
+      - name: "Trigger APK build"
+        if: "${{ env.commit_result }}"
+        uses: ./.github/workflows/apk.yml
