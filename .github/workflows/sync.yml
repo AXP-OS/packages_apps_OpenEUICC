@@ -29,5 +29,5 @@ jobs:
     steps:
          
       - name: "Trigger APK build"
-        if: "${{ needs.call-org-workflow.outputs.commitcheck }}"
+        if: "${{ needs.call-org-workflow.outputs.cc_res }}"
         uses: ./.github/workflows/apk.yml
