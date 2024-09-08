@@ -14,7 +14,7 @@ internal object LpacJni {
     // es10c
     // null returns signify errors
     external fun es10cGetEid(handle: Long): String?
-    external fun es10cGetProfilesInfo(handle: Long): Array<LocalProfileInfo>?
+    external fun es10cGetProfilesInfo(handle: Long): Long
     external fun es10cEnableProfile(handle: Long, iccid: String, refresh: Boolean): Int
     external fun es10cDisableProfile(handle: Long, iccid: String, refresh: Boolean): Int
     external fun es10cDeleteProfile(handle: Long, iccid: String): Int
@@ -31,9 +31,22 @@ internal object LpacJni {
     external fun handleNotification(handle: Long, seqNumber: Long): Int
 
     // es10cex (actually part of es10b)
-    external fun es10cexGetEuiccInfo2(handle: Long): EuiccInfo2?
+    external fun es10cexGetEuiccInfo2(handle: Long): Long
 
     // C <-> Java struct / linked list handling
+    // C String arrays
+    external fun stringArrNext(curr: Long): Long
+    external fun stringDeref(curr: Long): String
+    // Profiles
+    external fun profilesNext(curr: Long): Long
+    external fun profilesFree(head: Long): Long
+    external fun profileGetIccid(curr: Long): String
+    external fun profileGetIsdpAid(curr: Long): String
+    external fun profileGetName(curr: Long): String
+    external fun profileGetNickname(curr: Long): String
+    external fun profileGetServiceProvider(curr: Long): String
+    external fun profileGetStateString(curr: Long): String
+    external fun profileGetClassString(curr: Long): String
     // Notifications
     external fun notificationsNext(curr: Long): Long
     external fun notificationGetSeq(curr: Long): Long
@@ -41,4 +54,16 @@ internal object LpacJni {
     external fun notificationGetAddress(curr: Long): String
     external fun notificationGetIccid(curr: Long): String
     external fun notificationsFree(head: Long)
+    // EuiccInfo2
+    external fun euiccInfo2Free(info: Long)
+    external fun euiccInfo2GetProfileVersion(info: Long): String
+    external fun euiccInfo2GetEuiccFirmwareVersion(info: Long): String
+    external fun euiccInfo2GetGlobalPlatformVersion(info: Long): String
+    external fun euiccInfo2GetSasAcreditationNumber(info: Long): String
+    external fun euiccInfo2GetPpVersion(info: Long): String
+    external fun euiccInfo2GetFreeNonVolatileMemory(info: Long): Long
+    external fun euiccInfo2GetFreeVolatileMemory(info: Long): Long
+    // C String Arrays
+    external fun euiccInfo2GetEuiccCiPKIdListForSigning(info: Long): Long
+    external fun euiccInfo2GetEuiccCiPKIdListForVerification(info: Long): Long
 }

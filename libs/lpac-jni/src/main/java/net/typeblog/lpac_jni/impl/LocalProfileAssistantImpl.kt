@@ -42,7 +42,28 @@ class LocalProfileAssistantImpl(
         }
 
     override val profiles: List<LocalProfileInfo>
-        get() = LpacJni.es10cGetProfilesInfo(contextHandle)?.asList() ?: listOf()
+        get() {
+            val head = LpacJni.es10cGetProfilesInfo(contextHandle)
+            var curr = head
+            val ret = mutableListOf<LocalProfileInfo>()
+            while (curr != 0L) {
+                val state = LocalProfileInfo.State.fromString(LpacJni.profileGetStateString(curr))
+                val clazz = LocalProfileInfo.Clazz.fromString(LpacJni.profileGetClassString(curr))
+                ret.add(LocalProfileInfo(
+                    LpacJni.profileGetIccid(curr),
+                    state,
+                    LpacJni.profileGetName(curr),
+                    LpacJni.profileGetNickname(curr),
+                    LpacJni.profileGetServiceProvider(curr),
+                    LpacJni.profileGetIsdpAid(curr),
+                    clazz
+                ))
+                curr = LpacJni.profilesNext(curr)
+            }
+
+            LpacJni.profilesFree(curr)
+            return ret
+        }
 
     override val notifications: List<LocalProfileNotification>
         get() {
@@ -66,7 +87,40 @@ class LocalProfileAssistantImpl(
         get() = LpacJni.es10cGetEid(contextHandle)!!
 
     override val euiccInfo2: EuiccInfo2?
-        get() = LpacJni.es10cexGetEuiccInfo2(contextHandle)
+        get() {
+            val cInfo = LpacJni.es10cexGetEuiccInfo2(contextHandle)
+            if (cInfo == 0L) return null
+
+            val euiccCiPKIdListForSigning = mutableListOf<String>()
+            var curr = LpacJni.euiccInfo2GetEuiccCiPKIdListForSigning(cInfo)
+            while (curr != 0L) {
+                euiccCiPKIdListForSigning.add(LpacJni.stringDeref(curr))
+                curr = LpacJni.stringArrNext(curr)
+            }
+
+            val euiccCiPKIdListForVerification = mutableListOf<String>()
+            curr = LpacJni.euiccInfo2GetEuiccCiPKIdListForVerification(cInfo)
+            while (curr != 0L) {
+                euiccCiPKIdListForVerification.add(LpacJni.stringDeref(curr))
+                curr = LpacJni.stringArrNext(curr)
+            }
+
+            val ret = EuiccInfo2(
+                LpacJni.euiccInfo2GetProfileVersion(cInfo),
+                LpacJni.euiccInfo2GetEuiccFirmwareVersion(cInfo),
+                LpacJni.euiccInfo2GetGlobalPlatformVersion(cInfo),
+                LpacJni.euiccInfo2GetSasAcreditationNumber(cInfo),
+                LpacJni.euiccInfo2GetPpVersion(cInfo),
+                LpacJni.euiccInfo2GetFreeNonVolatileMemory(cInfo).toInt(),
+                LpacJni.euiccInfo2GetFreeVolatileMemory(cInfo).toInt(),
+                euiccCiPKIdListForSigning.toTypedArray(),
+                euiccCiPKIdListForVerification.toTypedArray()
+            )
+
+            LpacJni.euiccInfo2Free(cInfo)
+
+            return ret
+        }
 
     override fun enableProfile(iccid: String, refresh: Boolean): Boolean =
         LpacJni.es10cEnableProfile(contextHandle, iccid, refresh) == 0
