@@ -19,6 +19,9 @@ import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -76,6 +79,21 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         fab = view.requireViewById(R.id.fab)
         profileList = view.requireViewById(R.id.profile_list)
 
+        val origFabMarginRight = (fab.layoutParams as ViewGroup.MarginLayoutParams).rightMargin
+        val origFabMarginBottom = (fab.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin
+        ViewCompat.setOnApplyWindowInsetsListener(fab) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+
+            v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                rightMargin = origFabMarginRight + bars.right
+                bottomMargin = origFabMarginBottom + bars.bottom
+            }
+
+            WindowInsetsCompat.CONSUMED
+        }
+
+        setupRootViewInsets(profileList)
+
         return view
     }
 
@@ -90,7 +108,10 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
             ProfileDownloadFragment.newInstance(slotId, portId)
                 .show(childFragmentManager, ProfileDownloadFragment.TAG)
         }
+    }
 
+    override fun onStart() {
+        super.onStart()
         refresh()
     }
 
@@ -133,6 +154,8 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         swipeRefresh.isRefreshing = true
 
         lifecycleScope.launch {
+            ensureEuiccChannelManager()
+
             if (!this@EuiccManagementFragment::disableSafeguardFlow.isInitialized) {
                 disableSafeguardFlow =
                     preferenceRepository.disableSafeguardFlow.stateIn(lifecycleScope)

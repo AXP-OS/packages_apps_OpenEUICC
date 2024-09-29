@@ -26,7 +26,7 @@ class CompatibilityCheckActivity: AppCompatActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_compatibility_check)
-        setSupportActionBar(requireViewById(R.id.toolbar))
+        setSupportActionBar(requireViewById(im.angry.openeuicc.common.R.id.toolbar))
         setupToolbarInsets()
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
@@ -35,6 +35,8 @@ class CompatibilityCheckActivity: AppCompatActivity() {
             LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
         compatibilityCheckList.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager.VERTICAL))
         compatibilityCheckList.adapter = adapter
+
+        setupRootViewInsets(compatibilityCheckList)
     }
 
     override fun onStart() {
