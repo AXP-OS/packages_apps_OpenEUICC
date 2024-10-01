@@ -27,7 +27,7 @@ jobs:
     needs: call_org_workflow
     
     steps:
-         
+      - uses: actions/checkout@v4
       - name: "If needed trigger an APK build (cc_res: >${{ needs.call_org_workflow.outputs.cc_res }}<)"
         if: ${{ needs.call_org_workflow.outputs.cc_res }} == 'True'
         uses: ./.github/workflows/apk.yml
