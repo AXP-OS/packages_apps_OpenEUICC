@@ -31,5 +31,5 @@ jobs:
         if: ${{ needs.call_org_workflow.outputs.cc_res }} == 'True'
         run: |
           gh workflow run apk.yml \
-          --ref main \
-          -f param1=value1  # You can pass parameters here if needed
+          --ref main
+          # You can pass parameters here if needed: -f param1=value1
