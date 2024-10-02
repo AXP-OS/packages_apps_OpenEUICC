@@ -2,7 +2,7 @@ name: "Sync"
 
 on:
   schedule:
-    - cron:  '32 10 * * *'
+    - cron:  '50 10 * * *'
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow pushing via github token
@@ -29,6 +29,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: "If needed, trigger APK build (cc_res: >${{ needs.call_org_workflow.outputs.cc_res }}<)"
         if: ${{ needs.call_org_workflow.outputs.cc_res }} == 'True'
+        env:
+          GH_TOKEN: ${{ secrets.AXP_GITHUB_TOKEN }}
         run: |
           gh workflow run apk.yml \
           --ref main
