@@ -2,7 +2,7 @@ name: "Sync"
 
 on:
   schedule:
-    - cron:  '35 20 * * *'
+    - cron:  '12 10 * * *'
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow pushing via github token
@@ -22,12 +22,14 @@ jobs:
         dryrun: false  # <- set to false after a test run
     secrets: inherit
 
-  call-build-wf:
+  call_build_wf:
     runs-on: ubuntu-latest
     needs: call_org_workflow
-    
     steps:
       - uses: actions/checkout@v4
-      - name: "If needed trigger an APK build (cc_res: >${{ needs.call_org_workflow.outputs.cc_res }}<)"
+      - name: "If needed, trigger APK build (cc_res: >${{ needs.call_org_workflow.outputs.cc_res }}<)"
         if: ${{ needs.call_org_workflow.outputs.cc_res }} == 'True'
-        uses: ./.github/workflows/apk.yml
+        run: |
+          gh workflow run apk.yml \
+          --ref main \
+          -f param1=value1  # You can pass parameters here if needed
