@@ -1,3 +1,9 @@
+# Github Actions
+[![Sync](https://github.com/AXP-OS/packages_apps_OpenEUICC/actions/workflows/sync.yml/badge.svg)](https://github.com/AXP-OS/packages_apps_OpenEUICC/actions/workflows/sync.yml)
+[![Build Open- & EasyEUICC](https://github.com/AXP-OS/packages_apps_OpenEUICC/actions/workflows/apk.yml/badge.svg)](https://github.com/AXP-OS/packages_apps_OpenEUICC/actions/workflows/apk.yml)
+
+# Original README
+
 <img src="https://gitea.angry.im/PeterCxy/OpenEUICC/media/branch/master/art/OpenEUICCBG.svg" width="512" height="300">
 
 A fully free and open-source Local Profile Assistant implementation for Android devices.
