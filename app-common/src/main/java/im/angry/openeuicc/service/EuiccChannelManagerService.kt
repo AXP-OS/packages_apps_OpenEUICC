@@ -14,6 +14,7 @@ import im.angry.openeuicc.common.R
 import im.angry.openeuicc.core.EuiccChannelManager
 import im.angry.openeuicc.util.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.transformWhile
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -194,7 +196,7 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
             updateForegroundNotification(title, iconRes)
 
             try {
-                withContext(Dispatchers.IO) {
+                withContext(Dispatchers.IO + NonCancellable) { // Any LPA-related task must always complete
                     this@EuiccChannelManagerService.task()
                 }
                 // This update will be sent by the subscriber (as shown below)
@@ -204,7 +206,9 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
                 Log.e(TAG, Log.getStackTraceString(t))
                 foregroundTaskState.value = ForegroundTaskState.Done(t)
             } finally {
-                stopSelf()
+                if (isActive) {
+                    stopSelf()
+                }
             }
         }
 
