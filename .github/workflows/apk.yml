@@ -91,20 +91,20 @@ jobs:
         sha256sum OpenEUICC_hidden-signed.apk > OpenEUICC_hidden-signed.apk.sha256
         sha256sum EasyEUICC-signed.apk > EasyEUICC-signed.apk.sha256  
         
-    - name: Upload signed APKs
-      uses: "marvinpinto/action-automatic-releases@latest"
-      with:
-        repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
-        automatic_release_tag: "${{ env.OPENEUICC_VERSION }}"
-        prerelease: false
-        title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
-        files: |
-          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk
-          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk.sha256
-          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk
-          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk.sha256
-          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
-          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
+#    - name: Upload signed APKs
+#      uses: "marvinpinto/action-automatic-releases@latest"
+#      with:
+#        repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
+#        automatic_release_tag: "${{ env.OPENEUICC_VERSION }}"
+#        prerelease: false
+#        title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
+#        files: |
+#          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk
+#          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk.sha256
+#          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk
+#          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk.sha256
+#          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
+#          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
 
     - name: Upload signed APKs (latest)
       uses: "marvinpinto/action-automatic-releases@latest"
