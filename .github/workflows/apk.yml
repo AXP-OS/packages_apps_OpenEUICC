@@ -107,7 +107,7 @@ jobs:
 #          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
 
     - name: Upload signed APKs (latest)
-      uses: "marvinpinto/action-automatic-releases@latest"
+      uses: "crowbarmaster/GH-Automatic-Releases@latest"
       with:
         repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
         automatic_release_tag: "latest"
