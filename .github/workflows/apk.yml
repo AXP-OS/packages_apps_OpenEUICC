@@ -92,7 +92,8 @@ jobs:
         sha256sum EasyEUICC-signed.apk > EasyEUICC-signed.apk.sha256  
         
 #    - name: Upload signed APKs
-#      uses: "marvinpinto/action-automatic-releases@latest"
+#      uses: "crowbarmaster/GH-Automatic-Releases@latest"
+#      # https://github.com/crowbarmaster/GH-Automatic-Releases
 #      with:
 #        repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
 #        automatic_release_tag: "${{ env.OPENEUICC_VERSION }}"
@@ -106,13 +107,17 @@ jobs:
 #          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
 #          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
 
-    - name: Upload signed APKs (latest)
-      uses: "crowbarmaster/GH-Automatic-Releases@latest"
+    - name: Create Release
+      # https://github.com/softprops/action-gh-release
+      uses: "softprops/action-gh-release@v2"
       with:
-        repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
+        token: "${{ secrets.AXP_GITHUB_TOKEN }}"
+        name: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
+        tag_name: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
         prerelease: false
-        title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
+        make_latest: true
+        #body: # will be pre-pended to release notes!
+        generate_release_notes: true
         files: |
           ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk
           ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk.sha256
@@ -120,3 +125,20 @@ jobs:
           ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk.sha256
           ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
           ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
+
+#    - name: Upload signed APKs (latest)
+#      # https://github.com/crowbarmaster/GH-Automatic-Releases
+#      uses: "crowbarmaster/GH-Automatic-Releases@latest"
+#      with:
+#        repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
+#        automatic_release_tag: "latest"
+#        overwrite_tag: true
+#        prerelease: false
+#        title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
+#        files: |
+#          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk
+#          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk.sha256
+#          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk
+#          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk.sha256
+#          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
+#          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
