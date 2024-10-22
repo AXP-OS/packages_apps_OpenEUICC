@@ -113,7 +113,7 @@ jobs:
       with:
         token: "${{ secrets.AXP_GITHUB_TOKEN }}"
         name: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
-        tag_name: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
+        tag_name: "${{ env.OPENEUICC_VERSION }}"
         prerelease: false
         make_latest: true
         #body: # will be pre-pended to release notes!
