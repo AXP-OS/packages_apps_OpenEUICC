@@ -3,6 +3,7 @@ package im.angry.openeuicc.core
 import android.content.Context
 import android.util.Log
 import im.angry.openeuicc.OpenEuiccApplication
+import im.angry.openeuicc.R
 import im.angry.openeuicc.util.*
 import java.lang.IllegalArgumentException
 
@@ -26,7 +27,8 @@ class PrivilegedEuiccChannelFactory(context: Context) : DefaultEuiccChannelFacto
                 "Trying TelephonyManager for slot ${port.card.physicalSlotIndex} port ${port.portIndex}"
             )
             try {
-                return EuiccChannel(
+                return EuiccChannelImpl(
+                    context.getString(R.string.telephony_manager),
                     port,
                     TelephonyManagerApduInterface(
                         port,

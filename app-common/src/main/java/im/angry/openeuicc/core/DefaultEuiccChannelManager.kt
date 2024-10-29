@@ -88,23 +88,26 @@ open class DefaultEuiccChannelManager(
         }
     }
 
-    override fun findEuiccChannelBySlotBlocking(logicalSlotId: Int): EuiccChannel? =
-        runBlocking {
-            withContext(Dispatchers.IO) {
-                if (logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
-                    return@withContext usbChannel
-                }
+    private suspend fun findEuiccChannelBySlot(logicalSlotId: Int): EuiccChannel? =
+        withContext(Dispatchers.IO) {
+            if (logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
+                return@withContext usbChannel
+            }
 
-                for (card in uiccCards) {
-                    for (port in card.ports) {
-                        if (port.logicalSlotIndex == logicalSlotId) {
-                            return@withContext tryOpenEuiccChannel(port)
-                        }
+            for (card in uiccCards) {
+                for (port in card.ports) {
+                    if (port.logicalSlotIndex == logicalSlotId) {
+                        return@withContext tryOpenEuiccChannel(port)
                     }
                 }
-
-                null
             }
+
+            null
+        }
+
+    override fun findEuiccChannelBySlotBlocking(logicalSlotId: Int): EuiccChannel? =
+        runBlocking {
+            findEuiccChannelBySlot(logicalSlotId)
         }
 
     override fun findEuiccChannelByPhysicalSlotBlocking(physicalSlotId: Int): EuiccChannel? =
@@ -158,6 +161,39 @@ open class DefaultEuiccChannelManager(
         runBlocking {
             findEuiccChannelByPort(physicalSlotId, portId)
         }
+
+    override suspend fun <R> withEuiccChannel(
+        physicalSlotId: Int,
+        portId: Int,
+        fn: suspend (EuiccChannel) -> R
+    ): R {
+        val channel = findEuiccChannelByPort(physicalSlotId, portId)
+            ?: throw EuiccChannelManager.EuiccChannelNotFoundException()
+        val wrapper = EuiccChannelWrapper(channel)
+        try {
+            return withContext(Dispatchers.IO) {
+                fn(wrapper)
+            }
+        } finally {
+            wrapper.invalidateWrapper()
+        }
+    }
+
+    override suspend fun <R> withEuiccChannel(
+        logicalSlotId: Int,
+        fn: suspend (EuiccChannel) -> R
+    ): R {
+        val channel = findEuiccChannelBySlot(logicalSlotId)
+            ?: throw EuiccChannelManager.EuiccChannelNotFoundException()
+        val wrapper = EuiccChannelWrapper(channel)
+        try {
+            return withContext(Dispatchers.IO) {
+                fn(wrapper)
+            }
+        } finally {
+            wrapper.invalidateWrapper()
+        }
+    }
 
     override suspend fun waitForReconnect(physicalSlotId: Int, portId: Int, timeoutMillis: Long) {
         if (physicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) return

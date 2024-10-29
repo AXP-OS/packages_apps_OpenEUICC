@@ -6,6 +6,7 @@ import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.se.omapi.SEService
 import android.util.Log
+import im.angry.openeuicc.common.R
 import im.angry.openeuicc.core.usb.UsbApduInterface
 import im.angry.openeuicc.core.usb.getIoEndpoints
 import im.angry.openeuicc.util.*
@@ -33,7 +34,8 @@ open class DefaultEuiccChannelFactory(protected val context: Context) : EuiccCha
 
         Log.i(DefaultEuiccChannelManager.TAG, "Trying OMAPI for physical slot ${port.card.physicalSlotIndex}")
         try {
-            return EuiccChannel(
+            return EuiccChannelImpl(
+                context.getString(R.string.omapi),
                 port,
                 OmapiApduInterface(
                     seService!!,
@@ -61,7 +63,8 @@ open class DefaultEuiccChannelFactory(protected val context: Context) : EuiccCha
         if (bulkIn == null || bulkOut == null) return null
         val conn = usbManager.openDevice(usbDevice) ?: return null
         if (!conn.claimInterface(usbInterface, true)) return null
-        return EuiccChannel(
+        return EuiccChannelImpl(
+            context.getString(R.string.usb),
             FakeUiccPortInfoCompat(FakeUiccCardInfoCompat(EuiccChannelManager.USB_CHANNEL_ID)),
             UsbApduInterface(
                 conn,
