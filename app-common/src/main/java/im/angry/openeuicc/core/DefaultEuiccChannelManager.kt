@@ -10,6 +10,9 @@ import im.angry.openeuicc.di.AppContainer
 import im.angry.openeuicc.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -162,6 +165,15 @@ open class DefaultEuiccChannelManager(
             findEuiccChannelByPort(physicalSlotId, portId)
         }
 
+    override suspend fun findFirstAvailablePort(physicalSlotId: Int): Int =
+        withContext(Dispatchers.IO) {
+            if (physicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
+                return@withContext 0
+            }
+
+            findAllEuiccChannelsByPhysicalSlot(physicalSlotId)?.getOrNull(0)?.portId ?: -1
+        }
+
     override suspend fun <R> withEuiccChannel(
         physicalSlotId: Int,
         portId: Int,
@@ -220,34 +232,35 @@ open class DefaultEuiccChannelManager(
         }
     }
 
-    override suspend fun enumerateEuiccChannels(): List<EuiccChannel> =
-        withContext(Dispatchers.IO) {
-            uiccCards.flatMap { info ->
-                info.ports.mapNotNull { port ->
-                    tryOpenEuiccChannel(port)?.also {
-                        Log.d(
-                            TAG,
-                            "Found eUICC on slot ${info.physicalSlotIndex} port ${port.portIndex}"
-                        )
-                    }
+    override fun flowEuiccPorts(): Flow<Pair<Int, Int>> = flow {
+        uiccCards.forEach { info ->
+            info.ports.forEach { port ->
+                tryOpenEuiccChannel(port)?.also {
+                    Log.d(
+                        TAG,
+                        "Found eUICC on slot ${info.physicalSlotIndex} port ${port.portIndex}"
+                    )
+
+                    emit(Pair(info.physicalSlotIndex, port.portIndex))
                 }
             }
         }
+    }.flowOn(Dispatchers.IO)
 
-    override suspend fun enumerateUsbEuiccChannel(): Pair<UsbDevice?, EuiccChannel?> =
+    override suspend fun tryOpenUsbEuiccChannel(): Pair<UsbDevice?, Boolean> =
         withContext(Dispatchers.IO) {
             usbManager.deviceList.values.forEach { device ->
                 Log.i(TAG, "Scanning USB device ${device.deviceId}:${device.vendorId}")
                 val iface = device.getSmartCardInterface() ?: return@forEach
                 // If we don't have permission, tell UI code that we found a candidate device, but we
                 // need permission to be able to do anything with it
-                if (!usbManager.hasPermission(device)) return@withContext Pair(device, null)
+                if (!usbManager.hasPermission(device)) return@withContext Pair(device, false)
                 Log.i(TAG, "Found CCID interface on ${device.deviceId}:${device.vendorId}, and has permission; trying to open channel")
                 try {
                     val channel = euiccChannelFactory.tryOpenUsbEuiccChannel(device, iface)
                     if (channel != null && channel.lpa.valid) {
                         usbChannel = channel
-                        return@withContext Pair(device, channel)
+                        return@withContext Pair(device, true)
                     }
                 } catch (e: Exception) {
                     // Ignored -- skip forward
@@ -255,7 +268,7 @@ open class DefaultEuiccChannelManager(
                 }
                 Log.i(TAG, "No valid eUICC channel found on USB device ${device.deviceId}:${device.vendorId}")
             }
-            return@withContext Pair(null, null)
+            return@withContext Pair(null, false)
         }
 
     override fun invalidate() {

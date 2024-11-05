@@ -1,6 +1,7 @@
 package im.angry.openeuicc.core
 
 import android.hardware.usb.UsbDevice
+import kotlinx.coroutines.flow.Flow
 
 /**
  * EuiccChannelManager holds references to, and manages the lifecycles of, individual
@@ -18,19 +19,26 @@ interface EuiccChannelManager {
     }
 
     /**
-     * Scan all possible _device internal_ sources for EuiccChannels, return them and have all
-     * scanned channels cached; these channels will remain open for the entire lifetime of
-     * this EuiccChannelManager object, unless disconnected externally or invalidate()'d
+     * Scan all possible _device internal_ sources for EuiccChannels, as a flow, return their physical
+     * (slotId, portId) and have all scanned channels cached; these channels will remain open
+     * for the entire lifetime of this EuiccChannelManager object, unless disconnected externally
+     * or invalidate()'d.
+     *
+     * To obtain a temporary reference to a EuiccChannel, use `withEuiccChannel()`.
      */
-    suspend fun enumerateEuiccChannels(): List<EuiccChannel>
+    fun flowEuiccPorts(): Flow<Pair<Int, Int>>
 
     /**
      * Scan all possible USB devices for CCID readers that may contain eUICC cards.
      * If found, try to open it for access, and add it to the internal EuiccChannel cache
      * as a "port" with id 99. When user interaction is required to obtain permission
-     * to interact with the device, the second return value (EuiccChannel) will be null.
+     * to interact with the device, the second return value will be false.
+     *
+     * Returns (usbDevice, canOpen). canOpen is false if either (1) no usb reader is found;
+     * or (2) usb reader is found, but user interaction is required for access;
+     * or (3) usb reader is found, but we are unable to open ISD-R.
      */
-    suspend fun enumerateUsbEuiccChannel(): Pair<UsbDevice?, EuiccChannel?>
+    suspend fun tryOpenUsbEuiccChannel(): Pair<UsbDevice?, Boolean>
 
     /**
      * Wait for a slot + port to reconnect (i.e. become valid again)
@@ -63,6 +71,12 @@ interface EuiccChannelManager {
      */
     suspend fun findEuiccChannelByPort(physicalSlotId: Int, portId: Int): EuiccChannel?
     fun findEuiccChannelByPortBlocking(physicalSlotId: Int, portId: Int): EuiccChannel?
+
+    /**
+     * Returns the first mapped & available port ID for a physical slot, or -1 if
+     * not found.
+     */
+    suspend fun findFirstAvailablePort(physicalSlotId: Int): Int
 
     class EuiccChannelNotFoundException: Exception("EuiccChannel not found")
 
