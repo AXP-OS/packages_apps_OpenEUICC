@@ -64,7 +64,7 @@ jobs:
         #wget -q -O aapt.zip https://dl.google.com/android/maven2/com/android/tools/build/aapt2/8.3.2-10880808/aapt2-8.3.2-10880808-linux.jar
         #unzip aapt.zip aapt2 && chmod +x aapt2
         #OVER=$(./aapt2 dump badging apks/OpenEUICC.apk | grep "VersionName" | sed -e "s/.*versionName='//" -e "s/' .*//")
-        OVER=$(date +%F)
+        OVER=$(date +%Y.%m.%d)
         [ -z "$OVER" ] && echo "ERROR: empty version detected" && exit 3
         echo "OPENEUICC_VERSION=$OVER" >> $GITHUB_ENV
         git_sha_short=$(git rev-parse --short "$GITHUB_SHA")
