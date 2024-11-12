@@ -9,13 +9,12 @@ import android.telephony.euicc.DownloadableSubscription
 import android.telephony.euicc.EuiccInfo
 import android.util.Log
 import net.typeblog.lpac_jni.LocalProfileInfo
-import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.core.EuiccChannelManager
+import im.angry.openeuicc.service.EuiccChannelManagerService.Companion.waitDone
 import im.angry.openeuicc.util.*
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import java.lang.IllegalStateException
+import kotlin.IllegalStateException
 
 class OpenEuiccService : EuiccService(), OpenEuiccContextMarker {
     companion object {
@@ -42,15 +41,6 @@ class OpenEuiccService : EuiccService(), OpenEuiccContextMarker {
     ) {
         val euiccChannelManager
             get() = euiccChannelManagerService.euiccChannelManager
-
-        fun findChannel(physicalSlotId: Int): EuiccChannel? =
-            euiccChannelManager.findEuiccChannelByPhysicalSlotBlocking(physicalSlotId)
-
-        fun findChannel(slotId: Int, portId: Int): EuiccChannel? =
-            euiccChannelManager.findEuiccChannelByPortBlocking(slotId, portId)
-
-        fun findAllChannels(physicalSlotId: Int): List<EuiccChannel>? =
-            euiccChannelManager.findAllEuiccChannelsByPhysicalSlotBlocking(physicalSlotId)
     }
 
     /**
@@ -88,14 +78,12 @@ class OpenEuiccService : EuiccService(), OpenEuiccContextMarker {
     }
 
     override fun onGetEid(slotId: Int): String? = withEuiccChannelManager {
-        findChannel(slotId)?.lpa?.eID
+        val portId = euiccChannelManager.findFirstAvailablePort(slotId)
+        if (portId < 0) return@withEuiccChannelManager null
+        euiccChannelManager.withEuiccChannel(slotId, portId) { channel ->
+            channel.lpa.eID
+        }
     }
-
-    // When two eSIM cards are present on one device, the Android settings UI
-    // gets confused and sets the incorrect slotId for profiles from one of
-    // the cards. This function helps Detect this case and abort early.
-    private fun EuiccChannel.profileExists(iccid: String?) =
-        lpa.profiles.any { it.iccid == iccid }
 
     private fun ensurePortIsMapped(slotId: Int, portId: Int) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
@@ -128,7 +116,11 @@ class OpenEuiccService : EuiccService(), OpenEuiccContextMarker {
         telephonyManager.simSlotMapping = mappings.reversed()
     }
 
-    private fun <T> retryWithTimeout(timeoutMillis: Int, backoff: Int = 1000, f: () -> T?): T? {
+    private suspend fun <T> retryWithTimeout(
+        timeoutMillis: Int,
+        backoff: Int = 1000,
+        f: suspend () -> T?
+    ): T? {
         val startTimeMillis = System.currentTimeMillis()
         do {
             try {
@@ -136,7 +128,7 @@ class OpenEuiccService : EuiccService(), OpenEuiccContextMarker {
             } catch (_: Exception) {
                 // Ignore
             } finally {
-                Thread.sleep(backoff.toLong())
+                delay(backoff.toLong())
             }
         } while (System.currentTimeMillis() - startTimeMillis < timeoutMillis)
         return null
@@ -242,39 +234,30 @@ class OpenEuiccService : EuiccService(), OpenEuiccContextMarker {
         Log.i(TAG, "onDeleteSubscription slotId=$slotId iccid=$iccid")
         if (shouldIgnoreSlot(slotId)) return@withEuiccChannelManager RESULT_FIRST_USER
 
-        try {
-            val channels =
-                findAllChannels(slotId) ?: return@withEuiccChannelManager RESULT_FIRST_USER
+        val ports = euiccChannelManager.findAvailablePorts(slotId)
+        if (ports.isEmpty()) return@withEuiccChannelManager RESULT_FIRST_USER
 
-            if (!channels[0].profileExists(iccid)) {
-                return@withEuiccChannelManager RESULT_FIRST_USER
-            }
-
-            // If the profile is enabled by ANY channel (port), we cannot delete it
-            channels.forEach { channel ->
+        // Check that the profile has been disabled on all slots
+        val enabledAnywhere = ports.any { port ->
+            euiccChannelManager.withEuiccChannel(slotId, port) { channel ->
                 val profile = channel.lpa.profiles.find {
                     it.iccid == iccid
-                } ?: return@withEuiccChannelManager RESULT_FIRST_USER
+                } ?: return@withEuiccChannel false
 
-                if (profile.state == LocalProfileInfo.State.Enabled) {
-                    // Must disable the profile first
-                    return@withEuiccChannelManager RESULT_FIRST_USER
-                }
+                profile.state == LocalProfileInfo.State.Enabled
             }
+        }
 
-            euiccChannelManager.beginTrackedOperationBlocking(channels[0].slotId, channels[0].portId) {
-                if (channels[0].lpa.deleteProfile(iccid)) {
-                    return@withEuiccChannelManager RESULT_OK
-                }
+        if (enabledAnywhere) return@withEuiccChannelManager RESULT_FIRST_USER
 
-                runBlocking {
-                    preferenceRepository.notificationDeleteFlow.first()
-                }
-            }
+        euiccChannelManagerService.waitForForegroundTask()
+        val success = euiccChannelManagerService.launchProfileDeleteTask(slotId, ports[0], iccid)
+            .waitDone() == null
 
-            return@withEuiccChannelManager RESULT_FIRST_USER
-        } catch (e: Exception) {
-            return@withEuiccChannelManager RESULT_FIRST_USER
+        return@withEuiccChannelManager if (success) {
+            RESULT_OK
+        } else {
+            RESULT_FIRST_USER
         }
     }
 
@@ -297,51 +280,90 @@ class OpenEuiccService : EuiccService(), OpenEuiccContextMarker {
         if (shouldIgnoreSlot(slotId)) return@withEuiccChannelManager RESULT_FIRST_USER
 
         try {
+            // First, try to find a pair of slotId and portId we can use for the switching operation
             // retryWithTimeout is needed here because this function may be called just after
             // AOSP has switched slot mappings, in which case the slots may not be ready yet.
-            val channel = if (portIndex == -1) {
-                retryWithTimeout(5000) { findChannel(slotId) }
-            } else {
-                retryWithTimeout(5000) { findChannel(slotId, portIndex) }
+            val (foundSlotId, foundPortId) = retryWithTimeout(5000) {
+                if (portIndex == -1) {
+                    // If port is not indicated, we can use any port
+                    val port = euiccChannelManager.findFirstAvailablePort(slotId).let {
+                        if (it < 0) {
+                            throw IllegalStateException("No mapped port available; may need to try again")
+                        }
+
+                        it
+                    }
+
+                    Pair(slotId, port)
+                } else {
+                    // Else, check until the indicated port is available
+                    euiccChannelManager.withEuiccChannel(slotId, portIndex) { channel ->
+                        if (!channel.valid) {
+                            throw IllegalStateException("Indicated slot / port combination is unavailable; may need to try again")
+                        }
+                    }
+
+                    Pair(slotId, portIndex)
+                }
             } ?: run {
+                // Failure case: mapped slots / ports aren't usable per constraints
+                // If we can't find a usable slot / port already mapped, and we aren't allowed to
+                // deactivate a SIM, we can only abort
                 if (!forceDeactivateSim) {
-                    // The user must select which SIM to deactivate
                     return@withEuiccChannelManager RESULT_MUST_DEACTIVATE_SIM
+                }
+
+                // If port ID is not indicated, we just try to map port 0
+                // This is because in order to get here, we have to have failed findFirstAvailablePort(),
+                // which means no eUICC port is mapped or connected properly whatsoever.
+                val foundPortId = if (portIndex == -1) {
+                    0
                 } else {
-                    try {
-                        // If we are allowed to deactivate any SIM we like, try mapping the indicated port first
-                        ensurePortIsMapped(slotId, portIndex)
-                        retryWithTimeout(5000) { findChannel(slotId, portIndex) }
-                    } catch (e: Exception) {
-                        // We cannot map the port (or it is already mapped)
-                        // but we can also use any port available on the card
-                        retryWithTimeout(5000) { findChannel(slotId) }
-                    } ?: return@withEuiccChannelManager RESULT_FIRST_USER
+                    portIndex
                 }
-            }
 
-            if (iccid != null && !channel.profileExists(iccid)) {
-                Log.i(TAG, "onSwitchToSubscriptionWithPort iccid=$iccid not found")
-                return@withEuiccChannelManager RESULT_FIRST_USER
-            }
+                // Now we can try to map an unused port
+                try {
+                    ensurePortIsMapped(slotId, foundPortId)
+                } catch (_: Exception) {
+                    return@withEuiccChannelManager RESULT_FIRST_USER
+                }
 
-            euiccChannelManager.beginTrackedOperationBlocking(channel.slotId, channel.portId) {
-                if (iccid != null) {
-                    // Disable any active profile first if present
-                    channel.lpa.disableActiveProfile(false)
-                    if (!channel.lpa.enableProfile(iccid)) {
-                        return@withEuiccChannelManager RESULT_FIRST_USER
+                // Wait for availability again
+                retryWithTimeout(5000) {
+                    euiccChannelManager.withEuiccChannel(slotId, foundPortId) { channel ->
+                        if (!channel.valid) {
+                            throw IllegalStateException("Indicated slot / port combination is unavailable; may need to try again")
+                        }
                     }
-                } else {
-                    if (!channel.lpa.disableActiveProfile(true)) {
-                        return@withEuiccChannelManager RESULT_FIRST_USER
-                    }
-                }
+                } ?: return@withEuiccChannelManager RESULT_FIRST_USER
 
-                runBlocking {
-                    preferenceRepository.notificationSwitchFlow.first()
-                }
+                Pair(slotId, foundPortId)
             }
+
+            Log.i(TAG, "Found slotId=$foundSlotId, portId=$foundPortId for switching")
+
+            // Now, figure out what they want us to do: disabling a profile, or enabling a new one?
+            val (foundIccid, enable) = if (iccid == null) {
+                // iccid == null means disabling
+                val foundIccid =
+                    euiccChannelManager.withEuiccChannel(foundSlotId, foundPortId) { channel ->
+                        channel.lpa.profiles.find { it.state == LocalProfileInfo.State.Enabled }
+                    }?.iccid ?: return@withEuiccChannelManager RESULT_FIRST_USER
+                Pair(foundIccid, false)
+            } else {
+                Pair(iccid, true)
+            }
+
+            val res = euiccChannelManagerService.launchProfileSwitchTask(
+                foundSlotId,
+                foundPortId,
+                foundIccid,
+                enable,
+                30 * 1000
+            ).waitDone()
+
+            if (res != null) return@withEuiccChannelManager RESULT_FIRST_USER
 
             return@withEuiccChannelManager RESULT_OK
         } catch (e: Exception) {
@@ -362,9 +384,11 @@ class OpenEuiccService : EuiccService(), OpenEuiccContextMarker {
             if (port < 0) {
                 return@withEuiccChannelManager RESULT_FIRST_USER
             }
+
+            euiccChannelManagerService.waitForForegroundTask()
             val success =
                 (euiccChannelManagerService.launchProfileRenameTask(slotId, port, iccid, nickname!!)
-                    ?.last() as? EuiccChannelManagerService.ForegroundTaskState.Done)?.error == null
+                    .waitDone()) == null
 
             euiccChannelManager.withEuiccChannel(slotId, port) { channel ->
                 appContainer.subscriptionManager.tryRefreshCachedEuiccInfo(channel.cardId)

@@ -48,35 +48,15 @@ interface EuiccChannelManager {
     suspend fun waitForReconnect(physicalSlotId: Int, portId: Int, timeoutMillis: Long = 1000)
 
     /**
-     * Returns the EuiccChannel corresponding to a **logical** slot
-     */
-    fun findEuiccChannelBySlotBlocking(logicalSlotId: Int): EuiccChannel?
-
-    /**
-     * Returns the first EuiccChannel corresponding to a **physical** slot
-     * If the physical slot supports MEP and has multiple ports, it is undefined
-     * which of the two channels will be returned.
-     */
-    fun findEuiccChannelByPhysicalSlotBlocking(physicalSlotId: Int): EuiccChannel?
-
-    /**
-     * Returns all EuiccChannels corresponding to a **physical** slot
-     * Multiple channels are possible in the case of MEP
-     */
-    suspend fun findAllEuiccChannelsByPhysicalSlot(physicalSlotId: Int): List<EuiccChannel>?
-    fun findAllEuiccChannelsByPhysicalSlotBlocking(physicalSlotId: Int): List<EuiccChannel>?
-
-    /**
-     * Returns the EuiccChannel corresponding to a **physical** slot and a port ID
-     */
-    suspend fun findEuiccChannelByPort(physicalSlotId: Int, portId: Int): EuiccChannel?
-    fun findEuiccChannelByPortBlocking(physicalSlotId: Int, portId: Int): EuiccChannel?
-
-    /**
      * Returns the first mapped & available port ID for a physical slot, or -1 if
      * not found.
      */
     suspend fun findFirstAvailablePort(physicalSlotId: Int): Int
+
+    /**
+     * Returns all mapped & available port IDs for a physical slot.
+     */
+    suspend fun findAvailablePorts(physicalSlotId: Int): List<Int>
 
     class EuiccChannelNotFoundException: Exception("EuiccChannel not found")
 
@@ -113,7 +93,7 @@ interface EuiccChannelManager {
      * This is only expected to be implemented when the application is privileged
      * TODO: Remove this from the common interface
      */
-    fun notifyEuiccProfilesChanged(logicalSlotId: Int) {
+    suspend fun notifyEuiccProfilesChanged(logicalSlotId: Int) {
         // no-op by default
     }
 }
