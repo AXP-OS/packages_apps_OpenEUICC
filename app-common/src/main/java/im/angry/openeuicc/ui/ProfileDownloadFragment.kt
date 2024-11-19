@@ -12,6 +12,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputLayout
@@ -25,12 +26,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.Exception
 
 class ProfileDownloadFragment : BaseMaterialDialogFragment(),
     Toolbar.OnMenuItemClickListener, EuiccChannelFragmentMarker {
     companion object {
         const val TAG = "ProfileDownloadFragment"
+
+        const val LOW_NVRAM_THRESHOLD = 30 * 1024 // < 30 KiB, the alert may fail
 
         fun newInstance(slotId: Int, portId: Int, finishWhenDone: Boolean = false): ProfileDownloadFragment =
             newInstanceEuicc(ProfileDownloadFragment::class.java, slotId, portId) {
@@ -135,7 +137,21 @@ class ProfileDownloadFragment : BaseMaterialDialogFragment(),
                 true
             }
             R.id.ok -> {
-                startDownloadProfile()
+                if (freeNvram > LOW_NVRAM_THRESHOLD) {
+                    startDownloadProfile()
+                } else {
+                    AlertDialog.Builder(requireContext()).apply {
+                        setTitle(R.string.profile_download_low_nvram_title)
+                        setMessage(R.string.profile_download_low_nvram_message)
+                        setIcon(android.R.drawable.ic_dialog_alert)
+                        setCancelable(true)
+                        setPositiveButton(android.R.string.ok) { _, _ ->
+                            startDownloadProfile()
+                        }
+                        setNegativeButton(android.R.string.cancel, null)
+                        show()
+                    }
+                }
                 true
             }
             else -> false
