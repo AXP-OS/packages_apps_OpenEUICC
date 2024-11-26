@@ -15,16 +15,19 @@ import im.angry.openeuicc.core.EuiccChannelManager
 import im.angry.openeuicc.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.isActive
@@ -65,6 +68,18 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
          */
         suspend fun Flow<ForegroundTaskState>.waitDone(): Throwable? =
             (this.last() as ForegroundTaskState.Done).error
+
+        /**
+         * Apply transform to a ForegroundTaskState flow so that it completes when a Done is seen.
+         *
+         * This must be applied each time a flow is returned for subscription purposes. If applied
+         * beforehand, we lose the ability to subscribe multiple times.
+         */
+        private fun Flow<ForegroundTaskState>.applyCompletionTransform() =
+            transformWhile {
+                emit(it)
+                it !is ForegroundTaskState.Done
+            }
     }
 
     inner class LocalBinder : Binder() {
@@ -97,6 +112,25 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
      */
     private val foregroundTaskState: MutableStateFlow<ForegroundTaskState> =
         MutableStateFlow(ForegroundTaskState.Idle)
+
+    /**
+     * A simple wrapper over a flow with taskId added.
+     *
+     * taskID is the exact millisecond-precision timestamp when the task is launched.
+     */
+    class ForegroundTaskSubscriberFlow(val taskId: Long, inner: Flow<ForegroundTaskState>) :
+        Flow<ForegroundTaskState> by inner
+
+    /**
+     * A cache of subscribers to 5 recently-launched foreground tasks, identified by ID
+     *
+     * Only one can be run at the same time, but those that are done will be kept in this
+     * map for a little while -- because UI components may be stopped and recreated while
+     * tasks are running. Having this buffer allows the components to re-subscribe even if
+     * the task completes while they are being recreated.
+     */
+    private val foregroundTaskSubscribers: MutableMap<Long, SharedFlow<ForegroundTaskState>> =
+        mutableMapOf()
 
     override fun onBind(intent: Intent): IBinder {
         super.onBind(intent)
@@ -176,11 +210,25 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
     }
 
     /**
+     * Recover the subscriber to a foreground task that is recently launched.
+     *
+     * null if the task doesn't exist, or was launched too long ago.
+     */
+    fun recoverForegroundTaskSubscriber(taskId: Long): ForegroundTaskSubscriberFlow? =
+        foregroundTaskSubscribers[taskId]?.let {
+            ForegroundTaskSubscriberFlow(taskId, it.applyCompletionTransform())
+        }
+
+    /**
      * Launch a potentially blocking foreground task in this service's lifecycle context.
      * This function does not block, but returns a Flow that emits ForegroundTaskState
      * updates associated with this task. The last update the returned flow will emit is
-     * always ForegroundTaskState.Done. The returned flow MUST be started in order for the
-     * foreground task to run.
+     * always ForegroundTaskState.Done.
+     *
+     * The returned flow can only be subscribed to once even though the underlying implementation
+     * is a SharedFlow. This is due to the need to apply transformations so that the stream
+     * actually completes. In order to subscribe multiple times, use `recoverForegroundTaskSubscriber`
+     * to acquire another instance.
      *
      * The task closure is expected to update foregroundTaskState whenever appropriate.
      * If a foreground task is already running, this function returns null.
@@ -194,7 +242,9 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
         failureTitle: String,
         iconRes: Int,
         task: suspend EuiccChannelManagerService.() -> Unit
-    ): Flow<ForegroundTaskState> {
+    ): ForegroundTaskSubscriberFlow {
+        val taskID = System.currentTimeMillis()
+
         // Atomically set the state to InProgress. If this returns true, we are
         // the only task currently in progress.
         if (!foregroundTaskState.compareAndSet(
@@ -202,7 +252,9 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
                 ForegroundTaskState.InProgress(0)
             )
         ) {
-            return flow { emit(ForegroundTaskState.Done(IllegalStateException("There are tasks currently running"))) }
+            return ForegroundTaskSubscriberFlow(
+                taskID,
+                flow { emit(ForegroundTaskState.Done(IllegalStateException("There are tasks currently running"))) })
         }
 
         lifecycleScope.launch(Dispatchers.Main) {
@@ -244,34 +296,70 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
             }
         }
 
+        // This is the flow we are going to return. We allow multiple subscribers by
+        // re-emitting state updates into this flow from another coroutine.
+        // replay = 2 ensures that we at least have 1 previous state whenever subscribed to.
+        // This is helpful when the task completed and is then re-subscribed to due to a
+        // UI recreation event -- this way, the UI will know at least one last progress event
+        // before completion / failure
+        val subscriberFlow = MutableSharedFlow<ForegroundTaskState>(
+            replay = 2,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST
+        )
+
         // We should be the only task running, so we can subscribe to foregroundTaskState
         // until we encounter ForegroundTaskState.Done.
         // Then, we complete the returned flow, but we also set the state back to Idle.
         // The state update back to Idle won't show up in the returned stream, because
         // it has been completed by that point.
-        return foregroundTaskState.transformWhile {
-            // Also update our notification when we see an update
-            // But ignore the first progress = 0 update -- that is the current value.
-            // we need that to be handled by the main coroutine after it finishes.
-            if (it !is ForegroundTaskState.InProgress || it.progress != 0) {
-                withContext(Dispatchers.Main) {
-                    updateForegroundNotification(title, iconRes)
+        lifecycleScope.launch(Dispatchers.Main) {
+            foregroundTaskState
+                .applyCompletionTransform()
+                .onEach {
+                    // Also update our notification when we see an update
+                    // But ignore the first progress = 0 update -- that is the current value.
+                    // we need that to be handled by the main coroutine after it finishes.
+                    if (it !is ForegroundTaskState.InProgress || it.progress != 0) {
+                        updateForegroundNotification(title, iconRes)
+                    }
+
+                    subscriberFlow.emit(it)
                 }
+                .onCompletion {
+                    // Reset state back to Idle when we are done.
+                    // We do it here because otherwise Idle and Done might become conflated
+                    // when emitted by the main coroutine in quick succession.
+                    // Doing it here ensures we've seen Done. This Idle event won't be
+                    // emitted to the consumer because the subscription has completed here.
+                    foregroundTaskState.value = ForegroundTaskState.Idle
+                }
+                .collect()
+        }
+
+        foregroundTaskSubscribers[taskID] = subscriberFlow.asSharedFlow()
+
+        if (foregroundTaskSubscribers.size > 5) {
+            // Remove enough elements so that the size is kept at 5
+            for (key in foregroundTaskSubscribers.keys.sorted()
+                .take(foregroundTaskSubscribers.size - 5)) {
+                foregroundTaskSubscribers.remove(key)
             }
-            emit(it)
-            it !is ForegroundTaskState.Done
-        }.onStart {
-            // When this Flow is started, we unblock the coroutine launched above by
-            // self-starting as a foreground service.
-            withContext(Dispatchers.Main) {
-                startForegroundService(
-                    Intent(
-                        this@EuiccChannelManagerService,
-                        this@EuiccChannelManagerService::class.java
-                    )
-                )
-            }
-        }.onCompletion { foregroundTaskState.value = ForegroundTaskState.Idle }
+        }
+
+        // Before we return, and after we have set everything up,
+        // self-start with foreground permission.
+        // This is going to unblock the main coroutine handling the task.
+        startForegroundService(
+            Intent(
+                this@EuiccChannelManagerService,
+                this@EuiccChannelManagerService::class.java
+            )
+        )
+
+        return ForegroundTaskSubscriberFlow(
+            taskID,
+            subscriberFlow.asSharedFlow().applyCompletionTransform()
+        )
     }
 
     val isForegroundTaskRunning: Boolean
@@ -289,14 +377,14 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
         matchingId: String?,
         confirmationCode: String?,
         imei: String?
-    ): Flow<ForegroundTaskState> =
+    ): ForegroundTaskSubscriberFlow =
         launchForegroundTask(
             getString(R.string.task_profile_download),
             getString(R.string.task_profile_download_failure),
             R.drawable.ic_task_sim_card_download
         ) {
             euiccChannelManager.beginTrackedOperation(slotId, portId) {
-                val res = euiccChannelManager.withEuiccChannel(slotId, portId) { channel ->
+                euiccChannelManager.withEuiccChannel(slotId, portId) { channel ->
                     channel.lpa.downloadProfile(
                         smdp,
                         matchingId,
@@ -311,11 +399,6 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
                         })
                 }
 
-                if (!res) {
-                    // TODO: Provide more details on the error
-                    throw RuntimeException("Failed to download profile; this is typically caused by another error happened before.")
-                }
-
                 preferenceRepository.notificationDownloadFlow.first()
             }
         }
@@ -325,7 +408,7 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
         portId: Int,
         iccid: String,
         name: String
-    ): Flow<ForegroundTaskState> =
+    ): ForegroundTaskSubscriberFlow =
         launchForegroundTask(
             getString(R.string.task_profile_rename),
             getString(R.string.task_profile_rename_failure),
@@ -347,7 +430,7 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
         slotId: Int,
         portId: Int,
         iccid: String
-    ): Flow<ForegroundTaskState> =
+    ): ForegroundTaskSubscriberFlow =
         launchForegroundTask(
             getString(R.string.task_profile_delete),
             getString(R.string.task_profile_delete_failure),
@@ -370,7 +453,7 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
         iccid: String,
         enable: Boolean, // Enable or disable the profile indicated in iccid
         reconnectTimeoutMillis: Long = 0 // 0 = do not wait for reconnect, useful for USB readers
-    ): Flow<ForegroundTaskState> =
+    ): ForegroundTaskSubscriberFlow =
         launchForegroundTask(
             getString(R.string.task_profile_switch),
             getString(R.string.task_profile_switch_failure),

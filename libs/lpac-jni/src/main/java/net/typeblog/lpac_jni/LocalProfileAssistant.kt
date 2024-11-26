@@ -1,6 +1,16 @@
 package net.typeblog.lpac_jni
 
+import net.typeblog.lpac_jni.HttpInterface.HttpResponse
+
 interface LocalProfileAssistant {
+    @Suppress("ArrayInDataClass")
+    data class ProfileDownloadException(
+        val lastHttpResponse: HttpResponse?,
+        val lastHttpException: Exception?,
+        val lastApduResponse: ByteArray?,
+        val lastApduException: Exception?,
+    ) : Exception("Failed to download profile")
+
     val valid: Boolean
     val profiles: List<LocalProfileInfo>
     val notifications: List<LocalProfileNotification>
@@ -22,7 +32,7 @@ interface LocalProfileAssistant {
     fun deleteProfile(iccid: String): Boolean
 
     fun downloadProfile(smdp: String, matchingId: String?, imei: String?,
-                        confirmationCode: String?, callback: ProfileDownloadCallback): Boolean
+                        confirmationCode: String?, callback: ProfileDownloadCallback)
 
     fun deleteNotification(seqNumber: Long): Boolean
     fun handleNotification(seqNumber: Long): Boolean

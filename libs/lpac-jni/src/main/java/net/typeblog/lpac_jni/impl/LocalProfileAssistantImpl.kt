@@ -5,18 +5,75 @@ import net.typeblog.lpac_jni.LpacJni
 import net.typeblog.lpac_jni.ApduInterface
 import net.typeblog.lpac_jni.EuiccInfo2
 import net.typeblog.lpac_jni.HttpInterface
+import net.typeblog.lpac_jni.HttpInterface.HttpResponse
 import net.typeblog.lpac_jni.LocalProfileAssistant
 import net.typeblog.lpac_jni.LocalProfileInfo
 import net.typeblog.lpac_jni.LocalProfileNotification
 import net.typeblog.lpac_jni.ProfileDownloadCallback
 
 class LocalProfileAssistantImpl(
-    private val apduInterface: ApduInterface,
-    httpInterface: HttpInterface
+    rawApduInterface: ApduInterface,
+    rawHttpInterface: HttpInterface
 ): LocalProfileAssistant {
     companion object {
         private const val TAG = "LocalProfileAssistantImpl"
     }
+
+    /**
+     * A thin wrapper over ApduInterface to acquire exceptions and errors transparently
+     */
+    private class ApduInterfaceWrapper(val apduInterface: ApduInterface) :
+        ApduInterface by apduInterface {
+        var lastApduResponse: ByteArray? = null
+        var lastApduException: Exception? = null
+
+        override fun transmit(tx: ByteArray): ByteArray =
+            try {
+                apduInterface.transmit(tx).also {
+                    lastApduException = null
+                    lastApduResponse = it
+                }
+            } catch (e: Exception) {
+                lastApduResponse = null
+                lastApduException = e
+                throw e
+            }
+    }
+
+    /**
+     * Same for HTTP for diagnostics
+     */
+    private class HttpInterfaceWrapper(val httpInterface: HttpInterface) :
+        HttpInterface by httpInterface {
+        /**
+         * The last HTTP response we have received from the SM-DP+ server.
+         *
+         * This is intended for error diagnosis. However, note that most SM-DP+ servers
+         * respond with 200 even when there is an error. This needs to be taken into
+         * account when designing UI.
+         */
+        var lastHttpResponse: HttpResponse? = null
+
+        /**
+         * The last exception that has been thrown during a HTTP connection
+         */
+        var lastHttpException: Exception? = null
+
+        override fun transmit(url: String, tx: ByteArray, headers: Array<String>): HttpResponse =
+            try {
+                httpInterface.transmit(url, tx, headers).also {
+                    lastHttpException = null
+                    lastHttpResponse = it
+                }
+            } catch (e: Exception) {
+                lastHttpResponse = null
+                lastHttpException = e
+                throw e
+            }
+    }
+
+    private val apduInterface = ApduInterfaceWrapper(rawApduInterface)
+    private val httpInterface = HttpInterfaceWrapper(rawHttpInterface)
 
     private var finalized = false
     private var contextHandle: Long = LpacJni.createContext(apduInterface, httpInterface)
@@ -144,15 +201,24 @@ class LocalProfileAssistantImpl(
 
     @Synchronized
     override fun downloadProfile(smdp: String, matchingId: String?, imei: String?,
-                                 confirmationCode: String?, callback: ProfileDownloadCallback): Boolean {
-        return LpacJni.downloadProfile(
+                                 confirmationCode: String?, callback: ProfileDownloadCallback) {
+        val res = LpacJni.downloadProfile(
             contextHandle,
             smdp,
             matchingId,
             imei,
             confirmationCode,
             callback
-        ) == 0
+        )
+
+        if (res != 0) {
+            throw LocalProfileAssistant.ProfileDownloadException(
+                httpInterface.lastHttpResponse,
+                httpInterface.lastHttpException,
+                apduInterface.lastApduResponse,
+                apduInterface.lastApduException,
+            )
+        }
     }
 
     @Synchronized

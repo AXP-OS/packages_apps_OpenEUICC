@@ -28,3 +28,73 @@ fun formatFreeSpace(size: Int): String =
     } else {
         "$size B"
     }
+
+fun String.prettyPrintJson(): String {
+    val ret = StringBuilder()
+    var inQuotes = false
+    var escaped = false
+    val indentSymbolStack = ArrayDeque<Char>()
+
+    val addNewLine = {
+        ret.append('\n')
+        repeat(indentSymbolStack.size) {
+            ret.append('\t')
+        }
+    }
+
+    var lastChar = ' '
+
+    for (c in this) {
+        when {
+            !inQuotes && (c == '{' || c == '[') -> {
+                ret.append(c)
+                indentSymbolStack.addLast(c)
+                addNewLine()
+            }
+
+            !inQuotes && (c == '}' || c == ']') -> {
+                indentSymbolStack.removeLast()
+                if (lastChar != ',') {
+                    addNewLine()
+                }
+                ret.append(c)
+            }
+
+            !inQuotes && c == ',' -> {
+                ret.append(c)
+                addNewLine()
+            }
+
+            !inQuotes && c == ':' -> {
+                ret.append(c)
+                ret.append(' ')
+            }
+
+            inQuotes && c == '\\' -> {
+                ret.append(c)
+                escaped = true
+                continue
+            }
+
+            !escaped && c == '"' -> {
+                ret.append(c)
+                inQuotes = !inQuotes
+            }
+
+            !inQuotes && c == ' ' -> {
+                // Do nothing -- we ignore spaces outside of quotes by default
+                // This is to ensure predictable formatting
+            }
+
+            else -> ret.append(c)
+        }
+
+        if (escaped) {
+            escaped = false
+        }
+
+        lastChar = c
+    }
+
+    return ret.toString()
+}

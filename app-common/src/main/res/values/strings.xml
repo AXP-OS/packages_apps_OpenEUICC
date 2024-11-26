@@ -74,6 +74,21 @@
     <string name="download_wizard_method_qr_code">Scan a QR code with camera</string>
     <string name="download_wizard_method_gallery">Load a QR code from gallery</string>
     <string name="download_wizard_method_manual">Enter manually</string>
+    <string name="download_wizard_details">Input or confirm details for downloading your eSIM:</string>
+    <string name="download_wizard_progress">Downloading your eSIM…</string>
+    <string name="download_wizard_progress_step_preparing">Preparing</string>
+    <string name="download_wizard_progress_step_connecting">Establishing connection to server</string>
+    <string name="download_wizard_progress_step_authenticating">Authenticating your device with server</string>
+    <string name="download_wizard_progress_step_downloading">Downloading eSIM profile</string>
+    <string name="download_wizard_progress_step_finalizing">Loading eSIM profile into storage</string>
+    <string name="download_wizard_diagnostics">Error diagnostics</string>
+    <string name="download_wizard_diagnostics_last_http_status">Last HTTP status (from server): %d</string>
+    <string name="download_wizard_diagnostics_last_http_response">Last HTTP response (from server):</string>
+    <string name="download_wizard_diagnostics_last_http_exception">Last HTTP exception:</string>
+    <string name="download_wizard_diagnostics_last_apdu_response">Last APDU response (from SIM): %s</string>
+    <string name="download_wizard_diagnostics_last_apdu_response_success">Last APDU response (from SIM) is successful</string>
+    <string name="download_wizard_diagnostics_last_apdu_response_fail">Last APDU response (from SIM) is a failure</string>
+    <string name="download_wizard_diagnostics_last_apdu_exception">Last APDU exception:</string>
 
     <string name="profile_rename_new_name">New nickname</string>
 

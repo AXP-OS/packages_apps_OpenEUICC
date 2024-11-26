@@ -46,7 +46,7 @@ class LocalProfileAssistantWrapper(orig: LocalProfileAssistant) :
         imei: String?,
         confirmationCode: String?,
         callback: ProfileDownloadCallback
-    ): Boolean = lpa.downloadProfile(smdp, matchingId, imei, confirmationCode, callback)
+    ) = lpa.downloadProfile(smdp, matchingId, imei, confirmationCode, callback)
 
     override fun deleteNotification(seqNumber: Long): Boolean = lpa.deleteNotification(seqNumber)
 
