@@ -2,7 +2,9 @@ package im.angry.openeuicc.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.widget.Toast
 import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.lifecycleScope
@@ -38,25 +40,28 @@ class SettingsFragment: PreferenceFragmentCompat() {
             }.collect()
         }
 
-        findPreference<Preference>("pref_info_app_version")
-            ?.apply {
-                summary = requireContext().selfAppVersion
+        findPreference<Preference>("pref_info_app_version")?.apply {
+            summary = requireContext().selfAppVersion
 
-                // Enable developer options when this is clicked for 7 times
-                setOnPreferenceClickListener(this@SettingsFragment::onAppVersionClicked)
-            }
+            // Enable developer options when this is clicked for 7 times
+            setOnPreferenceClickListener(::onAppVersionClicked)
+        }
 
-        findPreference<Preference>("pref_info_source_code")
-            ?.setOnPreferenceClickListener {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it.summary.toString())))
-                true
-            }
+        findPreference<Preference>("pref_info_source_code")?.apply {
+            intent = Intent(Intent.ACTION_VIEW, Uri.parse(summary.toString()))
+        }
 
-        findPreference<Preference>("pref_advanced_logs")
-            ?.setOnPreferenceClickListener {
-                startActivity(Intent(requireContext(), LogsActivity::class.java))
-                true
+        findPreference<Preference>("pref_language")?.apply {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return@apply
+            isVisible = true
+            intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
+                data = Uri.fromParts("package", requireContext().packageName, null)
             }
+        }
+
+        findPreference<Preference>("pref_advanced_logs")?.apply {
+            intent = Intent(requireContext(), LogsActivity::class.java)
+        }
 
         findPreference<CheckBoxPreference>("pref_notifications_download")
             ?.bindBooleanFlow(preferenceRepository.notificationDownloadFlow, PreferenceKeys.NOTIFICATION_DOWNLOAD)
@@ -76,13 +81,16 @@ class SettingsFragment: PreferenceFragmentCompat() {
         findPreference<CheckBoxPreference>("pref_developer_experimental_download_wizard")
             ?.bindBooleanFlow(preferenceRepository.experimentalDownloadWizardFlow, PreferenceKeys.EXPERIMENTAL_DOWNLOAD_WIZARD)
 
+        findPreference<CheckBoxPreference>("pref_developer_unfiltered_profile_list")
+            ?.bindBooleanFlow(preferenceRepository.unfilteredProfileListFlow, PreferenceKeys.UNFILTERED_PROFILE_LIST)
+
         findPreference<CheckBoxPreference>("pref_ignore_tls_certificate")
             ?.bindBooleanFlow(preferenceRepository.ignoreTLSCertificateFlow, PreferenceKeys.IGNORE_TLS_CERTIFICATE)
     }
 
     override fun onStart() {
         super.onStart()
-        setupRootViewInsets(requireView().requireViewById(androidx.preference.R.id.recycler_view))
+        setupRootViewInsets(requireView().requireViewById(R.id.recycler_view))
     }
 
     @Suppress("UNUSED_PARAMETER")

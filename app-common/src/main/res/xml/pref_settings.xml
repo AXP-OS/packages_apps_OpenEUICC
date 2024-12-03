@@ -37,6 +37,13 @@
             app:summary="@string/pref_advanced_verbose_logging_desc" />
 
         <Preference
+            app:iconSpaceReserved="false"
+            app:isPreferenceVisible="false"
+            app:key="pref_language"
+            app:summary="@string/pref_language_desc"
+            app:title="@string/pref_language" />
+
+        <Preference
             app:key="pref_advanced_logs"
             app:iconSpaceReserved="false"
             app:title="@string/pref_advanced_logs"
@@ -54,6 +61,12 @@
             app:iconSpaceReserved="false"
             app:title="@string/pref_developer_experimental_download_wizard"
             app:summary="@string/pref_developer_experimental_download_wizard_desc" />
+
+        <CheckBoxPreference
+            app:iconSpaceReserved="false"
+            app:key="pref_developer_unfiltered_profile_list"
+            app:summary="@string/pref_developer_unfiltered_profile_list_desc"
+            app:title="@string/pref_developer_unfiltered_profile_list" />
 
         <CheckBoxPreference
             app:iconSpaceReserved="false"
