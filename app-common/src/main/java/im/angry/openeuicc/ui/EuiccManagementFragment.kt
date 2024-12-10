@@ -20,6 +20,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -36,7 +37,6 @@ import im.angry.openeuicc.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -109,16 +109,9 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
             LinearLayoutManager(view.context, LinearLayoutManager.VERTICAL, false)
 
         fab.setOnClickListener {
-            lifecycleScope.launch {
-                if (preferenceRepository.experimentalDownloadWizardFlow.first()) {
-                    Intent(requireContext(), DownloadWizardActivity::class.java).apply {
-                        putExtra("selectedLogicalSlot", logicalSlotId)
-                        startActivity(this)
-                    }
-                } else {
-                    ProfileDownloadFragment.newInstance(slotId, portId)
-                        .show(childFragmentManager, ProfileDownloadFragment.TAG)
-                }
+            Intent(requireContext(), DownloadWizardActivity::class.java).apply {
+                putExtra("selectedLogicalSlot", logicalSlotId)
+                startActivity(this)
             }
         }
     }
@@ -339,6 +332,8 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         private val name: TextView = root.requireViewById(R.id.name)
         private val state: TextView = root.requireViewById(R.id.state)
         private val provider: TextView = root.requireViewById(R.id.provider)
+        private val profileClassLabel: TextView = root.requireViewById(R.id.profile_class_label)
+        private val profileClass: TextView = root.requireViewById(R.id.profile_class)
         private val profileMenu: ImageButton = root.requireViewById(R.id.profile_menu)
 
         init {
@@ -375,6 +370,15 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
                 }
             )
             provider.text = profile.providerName
+            profileClassLabel.isVisible = unfilteredProfileListFlow.value
+            profileClass.isVisible = unfilteredProfileListFlow.value
+            profileClass.setText(
+                when (profile.profileClass) {
+                    LocalProfileInfo.Clazz.Testing -> R.string.profile_class_testing
+                    LocalProfileInfo.Clazz.Provisioning -> R.string.profile_class_provisioning
+                    LocalProfileInfo.Clazz.Operational -> R.string.profile_class_operational
+                }
+            )
             iccid.text = profile.iccid
             iccid.transformationMethod = PasswordTransformationMethod.getInstance()
         }

@@ -109,7 +109,7 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
     override fun onOptionsItemSelected(item: MenuItem): Boolean =
         when (item.itemId) {
             R.id.settings -> {
-                startActivity(Intent(this, SettingsActivity::class.java));
+                startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }
             R.id.reload -> {
@@ -126,7 +126,10 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
     }
 
     private fun ensureNotificationPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        val needsNotificationPerms = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU;
+        val notificationPermsGranted =
+            needsNotificationPerms && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        if (needsNotificationPerms && !notificationPermsGranted) {
             requestPermissions(
                 arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
                 PERMISSION_REQUEST_CODE
@@ -160,38 +163,29 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
                 // but it could change in the future
                 euiccChannelManager.notifyEuiccProfilesChanged(channel.logicalSlotId)
 
-                newPages.add(
-                    Page(
-                        channel.logicalSlotId,
-                        getString(R.string.channel_name_format, channel.logicalSlotId)
-                    ) {
-                        appContainer.uiComponentFactory.createEuiccManagementFragment(
-                            slotId,
-                            portId
-                        )
-                    })
+                val channelName = getString(R.string.channel_name_format, channel.logicalSlotId)
+                newPages.add(Page(channel.logicalSlotId, channelName) {
+                    appContainer.uiComponentFactory.createEuiccManagementFragment(slotId, portId)
+                })
             }
         }.collect()
 
         // If USB readers exist, add them at the very last
         // We use a wrapper fragment to handle logic specific to USB readers
         usbDevice?.let {
-            newPages.add(
-                Page(
-                    EuiccChannelManager.USB_CHANNEL_ID,
-                    it.productName ?: getString(R.string.usb)
-                ) { UsbCcidReaderFragment() })
+            val productName = it.productName ?: getString(R.string.usb)
+            newPages.add(Page(EuiccChannelManager.USB_CHANNEL_ID, productName) {
+                UsbCcidReaderFragment()
+            })
         }
         viewPager.visibility = View.VISIBLE
 
         if (newPages.size > 1) {
             tabs.visibility = View.VISIBLE
         } else if (newPages.isEmpty()) {
-            newPages.add(
-                Page(
-                    -1,
-                    ""
-                ) { appContainer.uiComponentFactory.createNoEuiccPlaceholderFragment() })
+            newPages.add(Page(-1, "") {
+                appContainer.uiComponentFactory.createNoEuiccPlaceholderFragment()
+            })
         }
 
         newPages.sortBy { it.logicalSlotId }

@@ -214,6 +214,7 @@ class LocalProfileAssistantImpl(
         if (res != 0) {
             // Construct the error now to store any error information we _can_ access
             val err = LocalProfileAssistant.ProfileDownloadException(
+                lpaErrorReason = LpacJni.downloadErrCodeToString(-res),
                 httpInterface.lastHttpResponse,
                 httpInterface.lastHttpException,
                 apduInterface.lastApduResponse,
@@ -240,6 +241,10 @@ class LocalProfileAssistantImpl(
     @Synchronized
     override fun setNickname(iccid: String, nickname: String): Boolean =
         LpacJni.es10cSetNickname(contextHandle, iccid, nickname) == 0
+
+    override fun euiccMemoryReset() {
+        LpacJni.es10cEuiccMemoryReset(contextHandle)
+    }
 
     @Synchronized
     override fun close() {

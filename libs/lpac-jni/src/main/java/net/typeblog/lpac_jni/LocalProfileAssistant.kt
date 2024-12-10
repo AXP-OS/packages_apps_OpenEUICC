@@ -5,6 +5,7 @@ import net.typeblog.lpac_jni.HttpInterface.HttpResponse
 interface LocalProfileAssistant {
     @Suppress("ArrayInDataClass")
     data class ProfileDownloadException(
+        val lpaErrorReason: String,
         val lastHttpResponse: HttpResponse?,
         val lastHttpException: Exception?,
         val lastApduResponse: ByteArray?,
@@ -36,6 +37,8 @@ interface LocalProfileAssistant {
 
     fun deleteNotification(seqNumber: Long): Boolean
     fun handleNotification(seqNumber: Long): Boolean
+
+    fun euiccMemoryReset()
 
     fun setNickname(
         iccid: String, nickname: String

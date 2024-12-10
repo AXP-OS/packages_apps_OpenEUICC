@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
-class SettingsFragment: PreferenceFragmentCompat() {
+open class SettingsFragment: PreferenceFragmentCompat() {
     private lateinit var developerPref: PreferenceCategory
 
     // Hidden developer options switch
@@ -35,9 +35,9 @@ class SettingsFragment: PreferenceFragmentCompat() {
 
         // Show / hide developer preference based on whether it is enabled
         lifecycleScope.launch {
-            preferenceRepository.developerOptionsEnabledFlow.onEach {
-                developerPref.isVisible = it
-            }.collect()
+            preferenceRepository.developerOptionsEnabledFlow
+                .onEach { developerPref.isVisible = it }
+                .collect()
         }
 
         findPreference<Preference>("pref_info_app_version")?.apply {
@@ -45,10 +45,6 @@ class SettingsFragment: PreferenceFragmentCompat() {
 
             // Enable developer options when this is clicked for 7 times
             setOnPreferenceClickListener(::onAppVersionClicked)
-        }
-
-        findPreference<Preference>("pref_info_source_code")?.apply {
-            intent = Intent(Intent.ACTION_VIEW, Uri.parse(summary.toString()))
         }
 
         findPreference<Preference>("pref_language")?.apply {
@@ -77,9 +73,6 @@ class SettingsFragment: PreferenceFragmentCompat() {
 
         findPreference<CheckBoxPreference>("pref_advanced_verbose_logging")
             ?.bindBooleanFlow(preferenceRepository.verboseLoggingFlow, PreferenceKeys.VERBOSE_LOGGING)
-
-        findPreference<CheckBoxPreference>("pref_developer_experimental_download_wizard")
-            ?.bindBooleanFlow(preferenceRepository.experimentalDownloadWizardFlow, PreferenceKeys.EXPERIMENTAL_DOWNLOAD_WIZARD)
 
         findPreference<CheckBoxPreference>("pref_developer_unfiltered_profile_list")
             ?.bindBooleanFlow(preferenceRepository.unfilteredProfileListFlow, PreferenceKeys.UNFILTERED_PROFILE_LIST)
@@ -142,5 +135,23 @@ class SettingsFragment: PreferenceFragmentCompat() {
             }
             true
         }
+    }
+
+    protected fun mergePreferenceOverlay(overlayKey: String, targetKey: String) {
+        val overlayCat = findPreference<PreferenceCategory>(overlayKey)!!
+        val targetCat = findPreference<PreferenceCategory>(targetKey)!!
+
+        val prefs = buildList {
+            for (i in 0..<overlayCat.preferenceCount) {
+                add(overlayCat.getPreference(i))
+            }
+        }
+
+        prefs.forEach {
+            overlayCat.removePreference(it)
+            targetCat.addPreference(it)
+        }
+
+        overlayCat.parent?.removePreference(overlayCat)
     }
 }

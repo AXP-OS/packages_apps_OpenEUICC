@@ -16,9 +16,9 @@ android {
         externalNativeBuild {
             ndkBuild {
                 cFlags(
-                    "-fmacro-prefix-map=${project.projectDir.toString()}=/fake/path/",
-                    "-fdebug-prefix-map=${project.projectDir.toString()}=/fake/path/",
-                    "-ffile-prefix-map=${project.projectDir.toString()}=/fake/path/"
+                    "-fmacro-prefix-map=${project.projectDir}=/fake/path/",
+                    "-fdebug-prefix-map=${project.projectDir}=/fake/path/",
+                    "-ffile-prefix-map=${project.projectDir}=/fake/path/"
                 )
             }
         }
@@ -32,7 +32,7 @@ android {
     }
     externalNativeBuild {
         ndkBuild {
-            path("src/main/jni/Android.mk")
+            path("src/main/jni/lpac-jni.mk")
         }
     }
     compileOptions {
