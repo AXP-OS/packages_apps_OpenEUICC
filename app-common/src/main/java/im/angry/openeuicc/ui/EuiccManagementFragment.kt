@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.text.method.PasswordTransformationMethod
 import android.view.LayoutInflater
@@ -261,7 +262,7 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
                         invalid = true
                         // Timed out waiting for SIM to come back online, we can no longer assume that the LPA is still valid
                         AlertDialog.Builder(requireContext()).apply {
-                            setMessage(R.string.enable_disable_timeout)
+                            setMessage(appContainer.customizableTextProvider.profileSwitchingTimeoutMessage)
                             setPositiveButton(android.R.string.ok) { dialog, _ ->
                                 dialog.dismiss()
                                 requireActivity().finish()
@@ -348,7 +349,8 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
             iccid.setOnLongClickListener {
                 requireContext().getSystemService(ClipboardManager::class.java)!!
                     .setPrimaryClip(ClipData.newPlainText("iccid", iccid.text))
-                Toast.makeText(requireContext(), R.string.toast_iccid_copied, Toast.LENGTH_SHORT)
+                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) Toast
+                    .makeText(requireContext(), R.string.toast_iccid_copied, Toast.LENGTH_SHORT)
                     .show()
                 true
             }

@@ -14,6 +14,7 @@ import im.angry.openeuicc.common.R
 import im.angry.openeuicc.service.EuiccChannelManagerService.Companion.waitDone
 import im.angry.openeuicc.util.*
 import kotlinx.coroutines.launch
+import net.typeblog.lpac_jni.LocalProfileAssistant
 
 class ProfileRenameFragment : BaseMaterialDialogFragment(), EuiccChannelFragmentMarker {
     companion object {
@@ -81,13 +82,18 @@ class ProfileRenameFragment : BaseMaterialDialogFragment(), EuiccChannelFragment
         }
     }
 
-    private fun rename() {
-        val name = profileRenameNewName.editText!!.text.toString().trim()
-        if (name.length >= 64) {
-            Toast.makeText(context, R.string.toast_profile_name_too_long, Toast.LENGTH_LONG).show()
-            return
-        }
+    private fun showErrorAndCancel(errorStrRes: Int) {
+        Toast.makeText(
+            requireContext(),
+            errorStrRes,
+            Toast.LENGTH_LONG
+        ).show()
 
+        renaming = false
+        progress.visibility = View.GONE
+    }
+
+    private fun rename() {
         renaming = true
         progress.isIndeterminate = true
         progress.visibility = View.VISIBLE
@@ -95,21 +101,37 @@ class ProfileRenameFragment : BaseMaterialDialogFragment(), EuiccChannelFragment
         lifecycleScope.launch {
             ensureEuiccChannelManager()
             euiccChannelManagerService.waitForForegroundTask()
-            euiccChannelManagerService.launchProfileRenameTask(
+            val res = euiccChannelManagerService.launchProfileRenameTask(
                 slotId,
                 portId,
                 requireArguments().getString("iccid")!!,
-                name
+                profileRenameNewName.editText!!.text.toString().trim()
             ).waitDone()
 
-            if (parentFragment is EuiccProfilesChangedListener) {
-                (parentFragment as EuiccProfilesChangedListener).onEuiccProfilesChanged()
-            }
+            when (res) {
+                is LocalProfileAssistant.ProfileNameTooLongException -> {
+                    showErrorAndCancel(R.string.profile_rename_too_long)
+                }
 
-            try {
-                dismiss()
-            } catch (e: IllegalStateException) {
-                // Ignored
+                is LocalProfileAssistant.ProfileNameIsInvalidUTF8Exception -> {
+                    showErrorAndCancel(R.string.profile_rename_encoding_error)
+                }
+
+                is Throwable -> {
+                    showErrorAndCancel(R.string.profile_rename_failure)
+                }
+
+                else -> {
+                    if (parentFragment is EuiccProfilesChangedListener) {
+                        (parentFragment as EuiccProfilesChangedListener).onEuiccProfilesChanged()
+                    }
+
+                    try {
+                        dismiss()
+                    } catch (e: IllegalStateException) {
+                        // Ignored
+                    }
+                }
             }
         }
     }
