@@ -3,6 +3,7 @@ package im.angry.openeuicc.core.usb
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbEndpoint
 import android.util.Log
+import im.angry.openeuicc.core.ApduInterfaceAtrProvider
 import im.angry.openeuicc.util.*
 import kotlinx.coroutines.flow.Flow
 import net.typeblog.lpac_jni.ApduInterface
@@ -12,7 +13,7 @@ class UsbApduInterface(
     private val bulkIn: UsbEndpoint,
     private val bulkOut: UsbEndpoint,
     private val verboseLoggingFlow: Flow<Boolean>
-): ApduInterface {
+) : ApduInterface, ApduInterfaceAtrProvider {
     companion object {
         private const val TAG = "UsbApduInterface"
     }
@@ -21,6 +22,8 @@ class UsbApduInterface(
     private lateinit var transceiver: UsbCcidTransceiver
 
     private var channelId = -1
+
+    override var atr: ByteArray? = null
 
     override fun connect() {
         ccidDescription = UsbCcidDescription.fromRawDescriptors(conn.rawDescriptors)!!
@@ -32,7 +35,9 @@ class UsbApduInterface(
         transceiver = UsbCcidTransceiver(conn, bulkIn, bulkOut, ccidDescription, verboseLoggingFlow)
 
         try {
-            transceiver.iccPowerOn()
+            // 6.1.1.1 PC_to_RDR_IccPowerOn (Page 20 of 40)
+            // https://www.usb.org/sites/default/files/DWG_Smart-Card_USB-ICC_ICCD_rev10.pdf
+            atr = transceiver.iccPowerOn().data
         } catch (e: Exception) {
             e.printStackTrace()
             throw e

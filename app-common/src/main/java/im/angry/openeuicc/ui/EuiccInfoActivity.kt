@@ -41,7 +41,7 @@ class EuiccInfoActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
         @StringRes
         val titleResId: Int,
         val content: String?,
-        val copiedToastResId: Int? = null
+        val copiedToastResId: Int? = null,
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -114,6 +114,7 @@ class EuiccInfoActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
             )
         )
         channel.lpa.euiccInfo2.let { info ->
+            add(Item(R.string.euicc_info_sgp22_version, info?.sgp22Version))
             add(Item(R.string.euicc_info_firmware_version, info?.euiccFirmwareVersion))
             add(Item(R.string.euicc_info_globalplatform_version, info?.globalPlatformVersion))
             add(Item(R.string.euicc_info_pp_version, info?.ppVersion))
@@ -133,6 +134,13 @@ class EuiccInfoActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
             }
             add(Item(R.string.euicc_info_ci_type, getString(resId)))
         }
+        add(
+            Item(
+                R.string.euicc_info_atr,
+                channel.atr?.encodeHex() ?: getString(R.string.information_unavailable),
+                copiedToastResId = R.string.toast_atr_copied,
+            )
+        )
     }
 
     private fun formatByBoolean(b: Boolean, res: Pair<Int, Int>): String =

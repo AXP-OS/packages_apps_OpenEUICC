@@ -15,7 +15,7 @@ class OmapiApduInterface(
     private val service: SEService,
     private val port: UiccPortInfoCompat,
     private val verboseLoggingFlow: Flow<Boolean>
-): ApduInterface {
+): ApduInterface, ApduInterfaceAtrProvider {
     companion object {
         const val TAG = "OmapiApduInterface"
     }
@@ -25,6 +25,9 @@ class OmapiApduInterface(
 
     override val valid: Boolean
         get() = service.isConnected && (this::session.isInitialized && !session.isClosed)
+
+    override val atr: ByteArray?
+        get() = session.atr
 
     override fun connect() {
         session = service.getUiccReaderCompat(port.logicalSlotIndex + 1).openSession()
