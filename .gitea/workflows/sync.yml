@@ -6,32 +6,29 @@ on:
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow pushing via github token
-permissions:
-  contents: write # allow git push
+#permissions:
+#  contents: write # allow git push
 
 jobs:
   call_org_workflow:
     name: "Calling AXP workflow"
-    uses: AXP-OS/.github/.github/workflows/sync_upstream.yml@main
+    runs-on: docker-node-latest
+    uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/sync_upstream.yml@main
     with:
         remote-server: gitea.angry.im
-        remote-repo: PeterCxy/OpenEUICC  # <- remote repo name (e.g. LineageOS/foo)
-        remote-branch:  master # <- remote branch name
+        remote-repo: PeterCxy/OpenEUICC
+        remote-branch:  master
         local-repo: ${{ github.repository_owner }}/${{ github.event.repository.name }}
         local-branch: "main"
-        dryrun: false  # <- set to false after a test run
+        dryrun: true  # <- set to false after a test run
     secrets: inherit
 
   call_build_wf:
-    runs-on: ubuntu-latest
+    runs-on: docker-node-latest
     needs: call_org_workflow
     steps:
       - uses: actions/checkout@v4
       - name: "If needed, trigger APK build (cc_res: >${{ needs.call_org_workflow.outputs.cc_res }}<)"
         if: ${{ needs.call_org_workflow.outputs.cc_res == 'True' }}
-        env:
-          GH_TOKEN: ${{ secrets.AXP_GITHUB_TOKEN }}
-        run: |
-          gh workflow run apk.yml \
-          --ref main
-          # You can pass parameters here if needed: -f param1=value1
+        uses: ./.gitea/workflows/apk.yml
+        secrets: inherit
