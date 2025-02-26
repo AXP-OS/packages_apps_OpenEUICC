@@ -13,7 +13,7 @@ jobs:
   call_org_workflow:
     name: "Calling AXP workflow"
     runs-on: docker-node-latest
-    uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/sync_upstream.yml@main
+    uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/sync_upstream.yaml@main
     with:
         remote-server: gitea.angry.im
         remote-repo: PeterCxy/OpenEUICC
