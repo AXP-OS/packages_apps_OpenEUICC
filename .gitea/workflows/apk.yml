@@ -119,19 +119,21 @@ jobs:
         if-no-files-found: error
         path: apks/*
 
-    - name: "Call the 'release to mirror' workflow"
-      uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/release_mirror_main.yaml@main
-      runs-on: docker-node-latest
-      secrets: inherit
-      with:
-        workflow_id: ${{ github.run_id }}
-        repo: ${{ github.repository_owner }}/${{ github.event.repository.name }}
-        title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
-        tag: "${{ needs.build.outputs.apk_version_short }}_${{ needs.build.outputs.apk_version_code }}"
-        targetc: axp
-        pre: true
-        #filepattern: '*.apk'
-        #body:
+  release:
+    name: "Call the 'release to mirror' workflow"
+    uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/release_mirror_main.yaml@main
+    runs-on: docker-node-latest
+    needs: build
+    secrets: inherit
+    with:
+      workflow_id: ${{ github.run_id }}
+      repo: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+      title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
+      tag: "${{ needs.build.outputs.apk_version_short }}_${{ needs.build.outputs.apk_version_code }}"
+      targetc: axp
+      pre: true
+      #filepattern: '*.apk'
+      #body:
 
 
 #        files: |
