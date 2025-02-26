@@ -130,7 +130,7 @@ jobs:
       repo: ${{ github.event.repository.name }} # without org!
       title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
       tag: "${{ needs.build.outputs.apk_version_short }}_${{ needs.build.outputs.apk_version_code }}"
-      targetc: axp
+      targetc: main
       pre: true
       #filepattern: '*.apk'
       #body:
