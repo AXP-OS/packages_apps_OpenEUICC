@@ -142,7 +142,7 @@ jobs:
       title: "${{ needs.build.outputs.apk_version }} (${{ needs.build.outputs.apk_version_code }})"
       tag: "${{ needs.build.outputs.apk_version }}_${{ needs.build.outputs.apk_version_code }}"
       targetc: main
-      pre: true
+      pre: false
       #filepattern: '*.apk'
       #body:
 
@@ -158,7 +158,7 @@ jobs:
       title: "${{ needs.build.outputs.apk_version }} (${{ needs.build.outputs.apk_version_code }})"
       tag: "${{ needs.build.outputs.apk_version }}_${{ needs.build.outputs.apk_version_code }}"
       targetc: main
-      pre: true
+      pre: false
       #filepattern: '*.apk'
       #body:
       filelist: >
