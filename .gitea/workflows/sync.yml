@@ -13,14 +13,14 @@ jobs:
   call_org_workflow:
     name: "Calling AXP workflow"
     runs-on: docker-node-latest
-    uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/sync_upstream.yml@main
+    uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/sync_upstream.yaml@main
     with:
         remote-server: gitea.angry.im
         remote-repo: PeterCxy/OpenEUICC
         remote-branch:  master
         local-repo: ${{ github.repository_owner }}/${{ github.event.repository.name }}
         local-branch: "main"
-        dryrun: true  # <- set to false after a test run
+        dryrun: false  # <- set to false after a test run
     secrets: inherit
 
   call_build_wf:
@@ -28,7 +28,7 @@ jobs:
     needs: call_org_workflow
     steps:
       - uses: actions/checkout@v4
-      - name: "If needed, trigger APK build (cc_res: >${{ needs.call_org_workflow.outputs.cc_res }}<)"
+      - name: "If new commits merged, trigger APK build"
         if: ${{ needs.call_org_workflow.outputs.cc_res == 'True' }}
         uses: ./.gitea/workflows/apk.yml
         secrets: inherit
