@@ -1,9 +1,14 @@
+############################################################################################
+# documentation:
+# - https://docs.gitea.com/usage/actions/overview
+# - https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows
+# - https://docs.gitea.com/usage/actions/faq#what-workflow-trigger-events-does-gitea-support
+############################################################################################
+# Build and release on main and second mirror
+############################################################################################
 name: Build Open- & EasyEUICC
 
 on:
-  #push:
-  #  branches:
-  #    - main
   pull_request:
     types:
       - closed
@@ -13,7 +18,7 @@ on:
 jobs:
   build:
     if: github.event.pull_request.merged == true || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: docker-node-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -35,29 +40,43 @@ jobs:
       with:
         gradle-home-cache-cleanup: true
 
+    - name: Setup Android SDK
+      # https://github.com/android-actions/setup-android
+      uses: android-actions/setup-android@v3
+      with:
+        cmdline-tools-version: 12266719
+        packages: "build-tools;35.0.0"
+  
+    - name: Prep container
+      shell: bash
+      run: |
+        apt-get update >> /dev/null \
+          && apt-get -y install gawk >> /dev/null
+          && echo "prep ended successfully"
+
     - name: Build Release APK (privileged + unprivileged)
       run: |
         mkdir apks
         # hidden from app drawer version
-        ./gradlew --no-daemon --stacktrace :app:assembleRelease
+        ./gradlew --stacktrace :app:assembleRelease
         mv -v app/build/outputs/apk/release/*.apk apks/OpenEUICC_hidden.apk
         
         # easyeuicc
-        ./gradlew --no-daemon --stacktrace :app-unpriv:assembleRelease
+        ./gradlew --stacktrace :app-unpriv:assembleRelease
         mv -v app-unpriv/build/outputs/apk/release/*.apk apks/EasyEUICC.apk
         
         # regular version (shown in app drawer)
         rm -rf app/build/outputs/apk/
         git fetch
         git revert -n 84e35d192ec96591dae82c911fc22142f7be13db
-        ./gradlew --no-daemon --stacktrace :app:assembleRelease
+        ./gradlew --stacktrace :app:assembleRelease
         mv -v app/build/outputs/apk/release/*.apk apks/OpenEUICC.apk
 
     # https://github.com/r0adkll/sign-android-release/issues/84#issuecomment-1885690080
     - name: "Get & set app and build variables"
       shell: bash
       run: |
-        BUILD_TOOL_VERSION=$(ls /usr/local/lib/android/sdk/build-tools/ | tail -n 1)
+        BUILD_TOOL_VERSION=$(ls ~/.android/sdk/build-tools | tail -n 1)
         echo "BUILD_TOOL_VERSION=$BUILD_TOOL_VERSION" >> $GITHUB_ENV
         echo Last build tool version is: $BUILD_TOOL_VERSION
         # see: https://maven.google.com/web/index.html#com.android.tools.build:aapt2
@@ -90,34 +109,31 @@ jobs:
         sha256sum OpenEUICC-signed.apk > OpenEUICC-signed.apk.sha256
         sha256sum OpenEUICC_hidden-signed.apk > OpenEUICC_hidden-signed.apk.sha256
         sha256sum EasyEUICC-signed.apk > EasyEUICC-signed.apk.sha256  
-        
-    - name: Create Release
-      uses: "crowbarmaster/GH-Automatic-Releases@latest"
-      # https://github.com/crowbarmaster/GH-Automatic-Releases
+
+    - name: Upload all files as artifact
+      uses: actions/upload-artifact@v3
+      id: upla
       with:
-        repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
-        automatic_release_tag: "${{ env.OPENEUICC_VERSION }}"
-        prerelease: false
+        name: release-artifact
+        retention-days: 1
+        if-no-files-found: error
+        path: apks/*
+
+    - name: "Call the 'release to mirror' workflow"
+      uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/release_mirror_main.yaml@main
+      runs-on: docker-node-latest
+      secrets: inherit
+      with:
+        workflow_id: ${{ github.run_id }}
+        repo: ${{ github.repository_owner }}/${{ github.event.repository.name }}
         title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
-        files: |
-          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk
-          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk.sha256
-          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk
-          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk.sha256
-          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
-          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
+        tag: "${{ needs.build.outputs.apk_version_short }}_${{ needs.build.outputs.apk_version_code }}"
+        targetc: axp
+        pre: true
+        #filepattern: '*.apk'
+        #body:
 
-#    - name: Create Release
-#      # https://github.com/softprops/action-gh-release
-#      uses: "softprops/action-gh-release@v2"
-#      with:
-#        token: "${{ secrets.AXP_GITHUB_TOKEN }}"
-#        name: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
-#        tag_name: "${{ env.OPENEUICC_VERSION }}"
-#        prerelease: false
-#        make_latest: true
-#        #body: # will be pre-pended to release notes!
-#        generate_release_notes: true
+
 #        files: |
 #          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk
 #          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk.sha256
@@ -126,19 +142,3 @@ jobs:
 #          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
 #          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
 
-#    - name: Upload signed APKs (latest)
-#      # https://github.com/crowbarmaster/GH-Automatic-Releases
-#      uses: "crowbarmaster/GH-Automatic-Releases@latest"
-#      with:
-#        repo_token: "${{ secrets.AXP_GITHUB_TOKEN }}"
-#        automatic_release_tag: "latest"
-#        overwrite_tag: true
-#        prerelease: false
-#        title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
-#        files: |
-#          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk
-#          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk.sha256
-#          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk
-#          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk.sha256
-#          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
-#          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
