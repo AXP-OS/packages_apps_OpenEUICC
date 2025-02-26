@@ -1,6 +1,11 @@
-# Github Actions
-[![Sync](https://github.com/AXP-OS/packages_apps_OpenEUICC/actions/workflows/sync.yml/badge.svg)](https://github.com/AXP-OS/packages_apps_OpenEUICC/actions/workflows/sync.yml)
-[![Build Open- & EasyEUICC](https://github.com/AXP-OS/packages_apps_OpenEUICC/actions/workflows/apk.yml/badge.svg)](https://github.com/AXP-OS/packages_apps_OpenEUICC/actions/workflows/apk.yml)
+# CI/CD
+
+(requires login at https://code.binbash.rocks to see states)
+
+![Upstream sync](https://code.binbash.rocks/AXP.OS/packages_apps_OpenEUICC/actions/workflows/sync.yml/badge.svg)
+![Gitea build](https://code.binbash.rocks/AXP.OS/packages_apps_OpenEUICC/actions/workflows/apk.yml/badge.svg)
+![Codeberg sync](https://code.binbash.rocks/AXP.OS/packages_apps_OpenEUICC/actions/workflows/mirror.yaml/badge.svg)
+![Github sync](https://code.binbash.rocks/AXP.OS/packages_apps_OpenEUICC/actions/workflows/mirror-github.yaml/badge.svg)
 
 # Original README
 
