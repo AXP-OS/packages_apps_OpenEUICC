@@ -131,7 +131,7 @@ jobs:
           apks/OpenEUICC_hidden-signed.apk.sha256
 
   release-codeberg:
-    name: "Call the 'release to codeberg' workflow"
+    name: "Release @Codeberg"
     uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/release_mirror_main.yaml@main
     runs-on: docker-node-latest
     needs: build
@@ -147,7 +147,7 @@ jobs:
       #body:
 
   release-github:
-    name: "Call the 'release to github' workflow"
+    name: "Release @github"
     uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/release_mirror_second.yaml@main
     runs-on: docker-node-latest
     needs: build
