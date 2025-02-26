@@ -92,6 +92,8 @@ jobs:
         git_sha_short=$(git rev-parse --short "$GITHUB_SHA")
         echo "git_sha_short=$git_sha_short" >> $GITHUB_ENV
         echo "OpenEUICC version is: $OVER ($git_sha_short)"
+        echo "git_sha_short=$git_sha_short" >> $GITHUB_OUTPUT
+        echo "OPENEUICC_VERSION=$OVER" >> $GITHUB_OUTPUT
 
     # https://github.com/r0adkll/sign-android-release
     - name: Sign apks
@@ -153,9 +155,16 @@ jobs:
     with:
       workflow_id: ${{ github.run_id }}
       repo: ${{ github.event.repository.name }} # without org!
-      title: "${{ env.OPENEUICC_VERSION }} (${{ env.git_sha_short }})"
-      tag: "${{ needs.build.outputs.apk_version_short }}_${{ needs.build.outputs.apk_version_code }}"
+      title: "${{ needs.build.outputs.apk_version }} (${{ needs.build.outputs.apk_version_code }})"
+      tag: "${{ needs.build.outputs.apk_version }}_${{ needs.build.outputs.apk_version_code }}"
       targetc: main
       pre: true
       #filepattern: '*.apk'
       #body:
+      filelist: |
+          OpenEUICC-signed.apk
+          OpenEUICC-signed.apk.sha256
+          EasyEUICC-signed.apk
+          EasyEUICC-signed.apk.sha256
+          OpenEUICC_hidden-signed.apk
+          OpenEUICC_hidden-signed.apk.sha256
