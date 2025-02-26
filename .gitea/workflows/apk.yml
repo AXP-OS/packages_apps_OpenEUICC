@@ -19,7 +19,9 @@ jobs:
   build:
     if: github.event.pull_request.merged == true || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: docker-node-latest
-
+    outputs:
+      apk_version: ${{ steps.vars.outputs.OPENEUICC_VERSION }}
+      apk_version_code: ${{ steps.vars.outputs.git_sha_short }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -74,6 +76,7 @@ jobs:
 
     # https://github.com/r0adkll/sign-android-release/issues/84#issuecomment-1885690080
     - name: "Get & set app and build variables"
+      id: vars
       shell: bash
       run: |
         BUILD_TOOL_VERSION=$(ls ~/.android/sdk/build-tools | tail -n 1)
@@ -108,7 +111,7 @@ jobs:
         cd apks
         sha256sum OpenEUICC-signed.apk > OpenEUICC-signed.apk.sha256
         sha256sum OpenEUICC_hidden-signed.apk > OpenEUICC_hidden-signed.apk.sha256
-        sha256sum EasyEUICC-signed.apk > EasyEUICC-signed.apk.sha256  
+        sha256sum EasyEUICC-signed.apk > EasyEUICC-signed.apk.sha256
 
     - name: Upload all files as artifact
       uses: actions/upload-artifact@v3
@@ -117,11 +120,33 @@ jobs:
         name: release-artifact
         retention-days: 1
         if-no-files-found: error
-        path: apks/*
+        path: |
+          apks/OpenEUICC-signed.apk
+          apks/OpenEUICC-signed.apk.sha256
+          apks/EasyEUICC-signed.apk
+          apks/EasyEUICC-signed.apk.sha256
+          apks/OpenEUICC_hidden-signed.apk
+          apks/OpenEUICC_hidden-signed.apk.sha256
 
-  release:
-    name: "Call the 'release to mirror' workflow"
+  release-codeberg:
+    name: "Call the 'release to codeberg' workflow"
     uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/release_mirror_main.yaml@main
+    runs-on: docker-node-latest
+    needs: build
+    secrets: inherit
+    with:
+      workflow_id: ${{ github.run_id }}
+      repo: ${{ github.event.repository.name }} # without org!
+      title: "${{ needs.build.outputs.apk_version }} (${{ needs.build.outputs.apk_version_code }})"
+      tag: "${{ needs.build.outputs.apk_version }}_${{ needs.build.outputs.apk_version_code }}"
+      targetc: main
+      pre: true
+      #filepattern: '*.apk'
+      #body:
+
+  release-github:
+    name: "Call the 'release to github' workflow"
+    uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/release_mirror_second.yaml@main
     runs-on: docker-node-latest
     needs: build
     secrets: inherit
@@ -134,13 +159,3 @@ jobs:
       pre: true
       #filepattern: '*.apk'
       #body:
-
-
-#        files: |
-#          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk
-#          ${{ github.WORKSPACE }}/apks/OpenEUICC-signed.apk.sha256
-#          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk
-#          ${{ github.WORKSPACE }}/apks/EasyEUICC-signed.apk.sha256
-#          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk
-#          ${{ github.WORKSPACE }}/apks/OpenEUICC_hidden-signed.apk.sha256
-
