@@ -161,7 +161,7 @@ jobs:
       pre: false
       #filepattern: '*.apk'
       #body:
-      filelist: >
+      filelist: >-
           OpenEUICC-signed.apk
           OpenEUICC-signed.apk.sha256
           EasyEUICC-signed.apk
