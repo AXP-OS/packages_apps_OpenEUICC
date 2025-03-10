@@ -25,8 +25,8 @@ jobs:
 
   call_build_wf:
     name: "If new commits merged, trigger APK build"
+    runs-on: docker-node-latest
     needs: call_org_workflow
     if: ${{ needs.call_org_workflow.outputs.cc_res == 'True' }}
     uses: ./.gitea/workflows/apk.yml@main
-    runs-on: docker-node-latest
     secrets: inherit
