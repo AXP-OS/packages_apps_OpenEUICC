@@ -5,9 +5,11 @@ import android.util.Log
 import im.angry.openeuicc.OpenEuiccApplication
 import im.angry.openeuicc.R
 import im.angry.openeuicc.util.*
+import kotlinx.coroutines.flow.first
 import java.lang.IllegalArgumentException
 
-class PrivilegedEuiccChannelFactory(context: Context) : DefaultEuiccChannelFactory(context) {
+class PrivilegedEuiccChannelFactory(context: Context) : DefaultEuiccChannelFactory(context),
+    PrivilegedEuiccContextMarker {
     private val tm by lazy {
         (context.applicationContext as OpenEuiccApplication).appContainer.telephonyManager
     }
@@ -21,7 +23,7 @@ class PrivilegedEuiccChannelFactory(context: Context) : DefaultEuiccChannelFacto
             super.tryOpenEuiccChannel(port)?.let { return it }
         }
 
-        if (port.card.isEuicc) {
+        if (port.card.isEuicc || preferenceRepository.removableTelephonyManagerFlow.first()) {
             Log.i(
                 DefaultEuiccChannelManager.TAG,
                 "Trying TelephonyManager for slot ${port.card.physicalSlotIndex} port ${port.portIndex}"
