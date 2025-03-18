@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Binder
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
@@ -11,6 +12,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import im.angry.openeuicc.common.R
+import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.core.EuiccChannelManager
 import im.angry.openeuicc.util.*
 import kotlinx.coroutines.Dispatchers
@@ -90,6 +92,12 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
         appContainer.euiccChannelManagerFactory.createEuiccChannelManager(this)
     }
     val euiccChannelManager: EuiccChannelManager by euiccChannelManagerDelegate
+
+    private val wakeLock: PowerManager.WakeLock by lazy {
+        (getSystemService(POWER_SERVICE) as PowerManager).run {
+            newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, this::class.simpleName)
+        }
+    }
 
     /**
      * The state of a "foreground" task (named so due to the need to startForeground())
@@ -275,6 +283,8 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
 
             updateForegroundNotification(title, iconRes)
 
+            wakeLock.acquire(10 * 60 * 1000L /*10 minutes*/)
+
             try {
                 withContext(Dispatchers.IO + NonCancellable) { // Any LPA-related task must always complete
                     this@EuiccChannelManagerService.task()
@@ -290,6 +300,7 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
                     postForegroundTaskFailureNotification(failureTitle)
                 }
             } finally {
+                wakeLock.release()
                 if (isActive) {
                     stopSelf()
                 }
@@ -446,30 +457,34 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
         iccid: String,
         enable: Boolean, // Enable or disable the profile indicated in iccid
         reconnectTimeoutMillis: Long = 0 // 0 = do not wait for reconnect
-    ): ForegroundTaskSubscriberFlow =
+    ) =
         launchForegroundTask(
             getString(R.string.task_profile_switch),
             getString(R.string.task_profile_switch_failure),
             R.drawable.ic_task_switch
         ) {
             euiccChannelManager.beginTrackedOperation(slotId, portId) {
-                val (res, refreshed) = euiccChannelManager.withEuiccChannel(
-                    slotId,
-                    portId
-                ) { channel ->
-                    if (!channel.lpa.switchProfile(iccid, enable, refresh = true)) {
-                        // Sometimes, we *can* enable or disable the profile, but we cannot
-                        // send the refresh command to the modem because the profile somehow
-                        // makes the modem "busy". In this case, we can still switch by setting
-                        // refresh to false, but then the switch cannot take effect until the
-                        // user resets the modem manually by toggling airplane mode or rebooting.
-                        Pair(channel.lpa.switchProfile(iccid, enable, refresh = false), false)
-                    } else {
-                        Pair(true, true)
+                val (response, refreshed) =
+                    euiccChannelManager.withEuiccChannel(slotId, portId) { channel ->
+                        val refresh = preferenceRepository.refreshAfterSwitchFlow.first()
+                        val response = channel.lpa.switchProfile(iccid, enable, refresh)
+                        if (response || !refresh) {
+                            Pair(response, refresh)
+                        } else {
+                            // refresh failed, but refresh was requested
+                            // Sometimes, we *can* enable or disable the profile, but we cannot
+                            // send the refresh command to the modem because the profile somehow
+                            // makes the modem "busy". In this case, we can still switch by setting
+                            // refresh to false, but then the switch cannot take effect until the
+                            // user resets the modem manually by toggling airplane mode or rebooting.
+                            Pair(
+                                channel.lpa.switchProfile(iccid, enable, refresh = false),
+                                false
+                            )
+                        }
                     }
-                }
 
-                if (!res) {
+                if (!response) {
                     throw RuntimeException("Could not switch profile")
                 }
 
