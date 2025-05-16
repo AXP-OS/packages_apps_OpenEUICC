@@ -59,6 +59,8 @@ jobs:
     - name: Build Release APK (privileged + unprivileged)
       run: |
         mkdir apks
+        git status
+
         # hidden from app drawer version
         ./gradlew --stacktrace :app:assembleRelease
         mv -v app/build/outputs/apk/release/*.apk apks/OpenEUICC_hidden.apk
@@ -73,6 +75,8 @@ jobs:
         git revert -n 84e35d192ec96591dae82c911fc22142f7be13db
         ./gradlew --stacktrace :app:assembleRelease
         mv -v app/build/outputs/apk/release/*.apk apks/OpenEUICC.apk
+
+        git status
 
     # https://github.com/r0adkll/sign-android-release/issues/84#issuecomment-1885690080
     - name: "Get & set app and build variables"
