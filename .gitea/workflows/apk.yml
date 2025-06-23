@@ -136,6 +136,19 @@ jobs:
           apks/OpenEUICC_hidden-signed.apk
           apks/OpenEUICC_hidden-signed.apk.sha256
 
+    - name: Upload F-Droid apks as artifact
+      uses: actions/upload-artifact@v3
+      id: upload
+      with:
+        name: release-fdroid
+        retention-days: 1
+        if-no-files-found: error
+        path: |
+          apks/OpenEUICC-signed.apk
+          apks/OpenEUICC-signed.apk.sha256
+          apks/EasyEUICC-signed.apk
+          apks/EasyEUICC-signed.apk.sha256
+
   release-codeberg:
     name: "Release @Codeberg"
     uses: https://codeberg.org/AXP-OS/actions/.gitea/workflows/release_mirror_main.yaml@main
@@ -184,4 +197,3 @@ jobs:
     with:
       workflow_id: ${{ github.run_id }}
       repo: ${{ github.event.repository.name }} # without org!
-      artifactname: "release-artifact"
