@@ -12,6 +12,9 @@ on:
   pull_request:
     types:
       - closed
+  push:
+    paths:
+      - trigger-build.txt
   workflow_call:      # we want to be triggered from the sync workflow
   workflow_dispatch:  # button shown only when in default branch
 
