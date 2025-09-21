@@ -8,6 +8,7 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.CheckBoxPreference
+import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
@@ -16,7 +17,6 @@ import im.angry.openeuicc.util.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 open class SettingsFragment: PreferenceFragmentCompat() {
     private lateinit var developerPref: PreferenceCategory
@@ -34,7 +34,7 @@ open class SettingsFragment: PreferenceFragmentCompat() {
         // Show / hide developer preference based on whether it is enabled
         lifecycleScope.launch {
             preferenceRepository.developerOptionsEnabledFlow
-                .onEach { developerPref.isVisible = it }
+                .onEach(developerPref::setVisible)
                 .collect()
         }
 
@@ -84,6 +84,9 @@ open class SettingsFragment: PreferenceFragmentCompat() {
         requirePreference<CheckBoxPreference>("pref_developer_euicc_memory_reset")
             .bindBooleanFlow(preferenceRepository.euiccMemoryResetFlow)
 
+        requirePreference<ListPreference>("pref_developer_es10x_mss")
+            .bindIntFlow(preferenceRepository.es10xMssFlow, 63)
+
         requirePreference<Preference>("pref_developer_isdr_aid_list").apply {
             intent = Intent(requireContext(), IsdrAidListActivity::class.java)
         }
@@ -100,46 +103,48 @@ open class SettingsFragment: PreferenceFragmentCompat() {
     @Suppress("UNUSED_PARAMETER")
     private fun onAppVersionClicked(pref: Preference): Boolean {
         if (developerPref.isVisible) return false
+
         val now = System.currentTimeMillis()
-        if (now - lastClickTimestamp >= 1000) {
-            numClicks = 1
-        } else {
-            numClicks++
-        }
+        numClicks = if (now - lastClickTimestamp >= 1000) 1 else numClicks + 1
         lastClickTimestamp = now
 
-        if (numClicks == 7) {
-            lifecycleScope.launch {
-                preferenceRepository.developerOptionsEnabledFlow.updatePreference(true)
-
-                lastToast?.cancel()
-                Toast.makeText(
-                    requireContext(),
-                    R.string.developer_options_enabled,
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        } else if (numClicks > 1) {
-            lastToast?.cancel()
-            lastToast = Toast.makeText(
-                requireContext(),
-                getString(R.string.developer_options_steps, 7 - numClicks),
-                Toast.LENGTH_SHORT
-            )
-            lastToast!!.show()
+        lifecycleScope.launch {
+            preferenceRepository.developerOptionsEnabledFlow.updatePreference(numClicks >= 7)
         }
 
+        val toastText = when {
+            numClicks == 7 -> getString(R.string.developer_options_enabled)
+            numClicks > 1 -> getString(R.string.developer_options_steps, 7 - numClicks)
+            else -> return true
+        }
+
+        lastToast?.cancel()
+        lastToast = Toast.makeText(requireContext(), toastText, Toast.LENGTH_SHORT)
+        lastToast!!.show()
         return true
     }
 
     protected fun CheckBoxPreference.bindBooleanFlow(flow: PreferenceFlowWrapper<Boolean>) {
         lifecycleScope.launch {
-            flow.collect { isChecked = it }
+            flow.collect(::setChecked)
         }
 
         setOnPreferenceChangeListener { _, newValue ->
-            runBlocking {
+            lifecycleScope.launch {
                 flow.updatePreference(newValue as Boolean)
+            }
+            true
+        }
+    }
+
+    private fun ListPreference.bindIntFlow(flow: PreferenceFlowWrapper<Int>, defaultValue: Int) {
+        lifecycleScope.launch {
+            flow.collect { value = it.toString() }
+        }
+
+        setOnPreferenceChangeListener { _, newValue ->
+            lifecycleScope.launch {
+                flow.updatePreference((newValue as String).toIntOrNull() ?: defaultValue)
             }
             true
         }

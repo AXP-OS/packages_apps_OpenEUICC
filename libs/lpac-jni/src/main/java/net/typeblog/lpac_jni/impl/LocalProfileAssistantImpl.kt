@@ -11,12 +11,14 @@ import net.typeblog.lpac_jni.LocalProfileInfo
 import net.typeblog.lpac_jni.LocalProfileNotification
 import net.typeblog.lpac_jni.ProfileDownloadCallback
 import net.typeblog.lpac_jni.Version
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class LocalProfileAssistantImpl(
     isdrAid: ByteArray,
     rawApduInterface: ApduInterface,
     rawHttpInterface: HttpInterface
-): LocalProfileAssistant {
+) : LocalProfileAssistant {
     companion object {
         private const val TAG = "LocalProfileAssistantImpl"
     }
@@ -74,6 +76,10 @@ class LocalProfileAssistantImpl(
             }
     }
 
+    // Controls concurrency of every single method in this class, since
+    // the C-side is explicitly NOT thread-safe
+    private val lock = ReentrantLock()
+
     private val apduInterface = ApduInterfaceWrapper(rawApduInterface)
     private val httpInterface = HttpInterfaceWrapper(rawHttpInterface)
 
@@ -105,23 +111,24 @@ class LocalProfileAssistantImpl(
         }
 
     override val profiles: List<LocalProfileInfo>
-        @Synchronized
-        get() {
+        get() = lock.withLock {
             val head = LpacJni.es10cGetProfilesInfo(contextHandle)
             var curr = head
             val ret = mutableListOf<LocalProfileInfo>()
             while (curr != 0L) {
                 val state = LocalProfileInfo.State.fromString(LpacJni.profileGetStateString(curr))
                 val clazz = LocalProfileInfo.Clazz.fromString(LpacJni.profileGetClassString(curr))
-                ret.add(LocalProfileInfo(
-                    LpacJni.profileGetIccid(curr),
-                    state,
-                    LpacJni.profileGetName(curr),
-                    LpacJni.profileGetNickname(curr),
-                    LpacJni.profileGetServiceProvider(curr),
-                    LpacJni.profileGetIsdpAid(curr),
-                    clazz
-                ))
+                ret.add(
+                    LocalProfileInfo(
+                        LpacJni.profileGetIccid(curr),
+                        state,
+                        LpacJni.profileGetName(curr),
+                        LpacJni.profileGetNickname(curr),
+                        LpacJni.profileGetServiceProvider(curr),
+                        LpacJni.profileGetIsdpAid(curr),
+                        clazz
+                    )
+                )
                 curr = LpacJni.profilesNext(curr)
             }
 
@@ -130,79 +137,87 @@ class LocalProfileAssistantImpl(
         }
 
     override val notifications: List<LocalProfileNotification>
-        @Synchronized
-        get() {
+        get() = lock.withLock {
             val head = LpacJni.es10bListNotification(contextHandle)
             var curr = head
-            val ret = mutableListOf<LocalProfileNotification>()
-            while (curr != 0L) {
-                ret.add(LocalProfileNotification(
-                    LpacJni.notificationGetSeq(curr),
-                    LocalProfileNotification.Operation.fromString(LpacJni.notificationGetOperationString(curr)),
-                    LpacJni.notificationGetAddress(curr),
-                    LpacJni.notificationGetIccid(curr),
-                ))
-                curr = LpacJni.notificationsNext(curr)
+
+            try {
+                val ret = mutableListOf<LocalProfileNotification>()
+                while (curr != 0L) {
+                    ret.add(
+                        LocalProfileNotification(
+                            LpacJni.notificationGetSeq(curr),
+                            LocalProfileNotification.Operation.fromString(
+                                LpacJni.notificationGetOperationString(
+                                    curr
+                                )
+                            ),
+                            LpacJni.notificationGetAddress(curr),
+                            LpacJni.notificationGetIccid(curr),
+                        )
+                    )
+                    curr = LpacJni.notificationsNext(curr)
+                }
+                return ret.sortedBy { it.seqNumber }.reversed()
+            } finally {
+                LpacJni.notificationsFree(head)
             }
-            LpacJni.notificationsFree(head)
-            return ret.sortedBy { it.seqNumber }.reversed()
         }
 
     override val eID: String
-        @Synchronized
-        get() = LpacJni.es10cGetEid(contextHandle)!!
+        get() = lock.withLock { LpacJni.es10cGetEid(contextHandle)!! }
 
     override val euiccInfo2: EuiccInfo2?
-        @Synchronized
-        get() {
+        get() = lock.withLock {
             val cInfo = LpacJni.es10cexGetEuiccInfo2(contextHandle)
             if (cInfo == 0L) return null
 
-            val ret = EuiccInfo2(
-                Version(LpacJni.euiccInfo2GetSGP22Version(cInfo)),
-                Version(LpacJni.euiccInfo2GetProfileVersion(cInfo)),
-                Version(LpacJni.euiccInfo2GetEuiccFirmwareVersion(cInfo)),
-                Version(LpacJni.euiccInfo2GetGlobalPlatformVersion(cInfo)),
-                LpacJni.euiccInfo2GetSasAcreditationNumber(cInfo),
-                Version(LpacJni.euiccInfo2GetPpVersion(cInfo)),
-                LpacJni.euiccInfo2GetFreeNonVolatileMemory(cInfo).toInt(),
-                LpacJni.euiccInfo2GetFreeVolatileMemory(cInfo).toInt(),
-                buildSet {
-                    var cursor = LpacJni.euiccInfo2GetEuiccCiPKIdListForSigning(cInfo)
-                    while (cursor != 0L) {
-                        add(LpacJni.stringDeref(cursor))
-                        cursor = LpacJni.stringArrNext(cursor)
-                    }
-                },
-                buildSet {
-                    var cursor = LpacJni.euiccInfo2GetEuiccCiPKIdListForVerification(cInfo)
-                    while (cursor != 0L) {
-                        add(LpacJni.stringDeref(cursor))
-                        cursor = LpacJni.stringArrNext(cursor)
-                    }
-                },
-            )
-
-            LpacJni.euiccInfo2Free(cInfo)
-
-            return ret
+            try {
+                return EuiccInfo2(
+                    Version(LpacJni.euiccInfo2GetSGP22Version(cInfo)),
+                    Version(LpacJni.euiccInfo2GetProfileVersion(cInfo)),
+                    Version(LpacJni.euiccInfo2GetEuiccFirmwareVersion(cInfo)),
+                    Version(LpacJni.euiccInfo2GetGlobalPlatformVersion(cInfo)),
+                    LpacJni.euiccInfo2GetSasAcreditationNumber(cInfo),
+                    Version(LpacJni.euiccInfo2GetPpVersion(cInfo)),
+                    LpacJni.euiccInfo2GetFreeNonVolatileMemory(cInfo).toInt(),
+                    LpacJni.euiccInfo2GetFreeVolatileMemory(cInfo).toInt(),
+                    buildSet {
+                        var cursor = LpacJni.euiccInfo2GetEuiccCiPKIdListForSigning(cInfo)
+                        while (cursor != 0L) {
+                            add(LpacJni.stringDeref(cursor))
+                            cursor = LpacJni.stringArrNext(cursor)
+                        }
+                    },
+                    buildSet {
+                        var cursor = LpacJni.euiccInfo2GetEuiccCiPKIdListForVerification(cInfo)
+                        while (cursor != 0L) {
+                            add(LpacJni.stringDeref(cursor))
+                            cursor = LpacJni.stringArrNext(cursor)
+                        }
+                    },
+                )
+            } finally {
+                LpacJni.euiccInfo2Free(cInfo)
+            }
         }
 
-    @Synchronized
-    override fun enableProfile(iccid: String, refresh: Boolean): Boolean =
+    override fun enableProfile(iccid: String, refresh: Boolean): Boolean = lock.withLock {
         LpacJni.es10cEnableProfile(contextHandle, iccid, refresh) == 0
+    }
 
-    @Synchronized
-    override fun disableProfile(iccid: String, refresh: Boolean): Boolean =
+    override fun disableProfile(iccid: String, refresh: Boolean): Boolean = lock.withLock {
         LpacJni.es10cDisableProfile(contextHandle, iccid, refresh) == 0
+    }
 
-    @Synchronized
-    override fun deleteProfile(iccid: String): Boolean =
+    override fun deleteProfile(iccid: String): Boolean = lock.withLock {
         LpacJni.es10cDeleteProfile(contextHandle, iccid) == 0
+    }
 
-    @Synchronized
-    override fun downloadProfile(smdp: String, matchingId: String?, imei: String?,
-                                 confirmationCode: String?, callback: ProfileDownloadCallback) {
+    override fun downloadProfile(
+        smdp: String, matchingId: String?, imei: String?,
+        confirmationCode: String?, callback: ProfileDownloadCallback
+    ) = lock.withLock {
         val res = LpacJni.downloadProfile(
             contextHandle,
             smdp,
@@ -229,18 +244,17 @@ class LocalProfileAssistantImpl(
         }
     }
 
-    @Synchronized
-    override fun deleteNotification(seqNumber: Long): Boolean =
+    override fun deleteNotification(seqNumber: Long): Boolean = lock.withLock {
         LpacJni.es10bDeleteNotification(contextHandle, seqNumber) == 0
+    }
 
-    @Synchronized
-    override fun handleNotification(seqNumber: Long): Boolean =
+    override fun handleNotification(seqNumber: Long): Boolean = lock.withLock {
         LpacJni.handleNotification(contextHandle, seqNumber).also {
             Log.d(TAG, "handleNotification $seqNumber = $it")
         } == 0
+    }
 
-    @Synchronized
-    override fun setNickname(iccid: String, nickname: String) {
+    override fun setNickname(iccid: String, nickname: String) = lock.withLock {
         val encoded = try {
             Charsets.UTF_8.encode(nickname).array()
         } catch (e: CharacterCodingException) {
@@ -259,11 +273,12 @@ class LocalProfileAssistantImpl(
     }
 
     override fun euiccMemoryReset() {
-        LpacJni.es10cEuiccMemoryReset(contextHandle)
+        lock.withLock {
+            LpacJni.es10cEuiccMemoryReset(contextHandle)
+        }
     }
 
-    @Synchronized
-    override fun close() {
+    override fun close() = lock.withLock {
         if (!finalized) {
             LpacJni.euiccFini(contextHandle)
             LpacJni.destroyContext(contextHandle)

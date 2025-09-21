@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.fragment.app.Fragment
@@ -38,6 +39,7 @@ internal object PreferenceKeys {
     val IGNORE_TLS_CERTIFICATE = booleanPreferencesKey("ignore_tls_certificate")
     val EUICC_MEMORY_RESET = booleanPreferencesKey("euicc_memory_reset")
     val ISDR_AID_LIST = stringPreferencesKey("isdr_aid_list")
+    val ES10X_MSS = intPreferencesKey("es10x_mss")
 }
 
 const val EUICC_DEFAULT_ISDR_AID = "A0000005591010FFFFFFFF8900000100"
@@ -50,8 +52,11 @@ internal object PreferenceConstants {
         # eUICC standard
         $EUICC_DEFAULT_ISDR_AID
 
-        # eSTK.me
+        # ESTKme AUX (deprecated, use SE0 instead)
         A06573746B6D65FFFFFFFF4953442D52
+
+        # ESTKme SE0
+        A06573746B6D65FFFF4953442D522030
 
         # eSIM.me
         A0000005591010000000008900000300
@@ -86,6 +91,7 @@ open class PreferenceRepository(private val context: Context) {
         PreferenceConstants.DEFAULT_AID_LIST,
         { Base64.getEncoder().encodeToString(it.encodeToByteArray()) },
         { Base64.getDecoder().decode(it).decodeToString() })
+    val es10xMssFlow = bindFlow(PreferenceKeys.ES10X_MSS, 63)
 
     protected fun <T> bindFlow(
         key: Preferences.Key<T>,
