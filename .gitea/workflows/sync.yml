@@ -18,7 +18,7 @@ jobs:
         remote-server: gitea.angry.im
         remote-repo: PeterCxy/OpenEUICC
         remote-branch:  master
-        local-repo: ${{ github.repository_owner }}/${{ github.event.repository.name }}
+        local-repo: 22443/${{ github.repository_owner }}/${{ github.event.repository.name }}
         local-branch: "main"
         dryrun: false  # <- set to false after a test run
     secrets: inherit
