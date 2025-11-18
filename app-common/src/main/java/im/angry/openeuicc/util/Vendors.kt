@@ -8,7 +8,6 @@ import net.typeblog.lpac_jni.Version
 data class EuiccVendorInfo(
     val skuName: String? = null,
     val serialNumber: String? = null,
-    val bootloaderVersion: String? = null,
     val firmwareVersion: String? = null,
 )
 
@@ -24,21 +23,12 @@ interface EuiccVendor {
 private class ESTKme : EuiccVendor {
     companion object {
         private val PRODUCT_AID = "A06573746B6D65FFFFFFFFFFFF6D6774".decodeHex()
-        private val PRODUCT_ATR_FPR = "estk.me".encodeToByteArray()
     }
 
-    private fun checkAtr(channel: EuiccChannel): Boolean {
-        val iface = channel.apduInterface
-        if (iface !is ApduInterfaceAtrProvider) return false
-        val atr = iface.atr ?: return false
-        for (index in atr.indices) {
-            if (atr.size - index < PRODUCT_ATR_FPR.size) break
-            if (atr.sliceArray(index until index + PRODUCT_ATR_FPR.size)
-                    .contentEquals(PRODUCT_ATR_FPR)
-            ) return true
-        }
-        return false
-    }
+    private fun checkAtr(channel: EuiccChannel): Boolean =
+        (channel.apduInterface as? ApduInterfaceAtrProvider)
+            ?.atr?.decodeToString()?.contains("estk.me")
+            ?: false
 
     private fun decodeAsn1String(b: ByteArray): String? {
         if (b.size < 2) return null
@@ -57,8 +47,11 @@ private class ESTKme : EuiccVendor {
                 EuiccVendorInfo(
                     skuName = invoke(0x03),
                     serialNumber = invoke(0x00),
-                    bootloaderVersion = invoke(0x01),
-                    firmwareVersion = invoke(0x02),
+                    firmwareVersion = run {
+                        val bl = invoke(0x01) // bootloader version
+                        val fw = invoke(0x02) // firmware version
+                        if (bl == null || fw == null) null else "$bl-$fw"
+                    },
                 )
             }
         } catch (e: Exception) {

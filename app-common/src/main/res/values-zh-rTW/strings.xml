@@ -41,7 +41,6 @@
     <string name="toast_sn_copied">已複製序號到剪貼簿</string>
     <string name="euicc_info_sku">產品名稱</string>
     <string name="euicc_info_sn">產品序號</string>
-    <string name="euicc_info_bl_ver">產品開機引導版本</string>
     <string name="euicc_info_fw_ver">產品韌體版本</string>
     <string name="profile_download_confirmation_code_required">確認碼 (必需)</string>
     <string name="profile_download_imei">IMEI (可選)</string>
@@ -136,7 +135,7 @@
     <string name="euicc_info_sgp22_version">SGP.22 版本</string>
     <string name="euicc_info_sas_accreditation_number">SAS 認證號碼</string>
     <string name="euicc_info_free_nvram">NVRAM 剩餘空間 (eSIM 儲存容量)</string>
-    <string name="euicc_info_free_nvram_hint">（僅供參考）</string>
+    <string name="euicc_info_free_nvram_hint">(僅供參考)</string>
     <string name="euicc_info_ci_type">證書簽發者 (CI)</string>
     <string name="euicc_info_ci_gsma_live">GSMA 生產環境 CI</string>
     <string name="euicc_info_ci_gsma_test">GSMA 測試 CI</string>
