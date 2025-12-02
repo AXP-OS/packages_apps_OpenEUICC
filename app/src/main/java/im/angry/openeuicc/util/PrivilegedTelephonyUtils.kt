@@ -7,7 +7,8 @@ import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.core.EuiccChannelManager
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.runBlocking
-import java.lang.Exception
+
+private val seId = EuiccChannel.SecureElementId.DEFAULT
 
 val TelephonyManager.supportsDSDS: Boolean
     get() = supportedModemCount == 2
@@ -19,7 +20,7 @@ fun TelephonyManager.setDsdsEnabled(euiccManager: EuiccChannelManager, enabled: 
     // Disable all eSIM profiles before performing a DSDS switch (only for internal eSIMs)
     runBlocking {
         euiccManager.flowInternalEuiccPorts().onEach { (slotId, portId) ->
-            euiccManager.withEuiccChannel(slotId, portId) {
+            euiccManager.withEuiccChannel(slotId, portId, seId) {
                 if (!it.port.card.isRemovable) {
                     it.lpa.disableActiveProfile(false)
                 }
@@ -27,13 +28,14 @@ fun TelephonyManager.setDsdsEnabled(euiccManager: EuiccChannelManager, enabled: 
         }
     }
 
-    switchMultiSimConfig(if (enabled) { 2 } else { 1 })
+    switchMultiSimConfig(if (enabled) 2 else 1)
 }
 
 // Disable eSIM profiles before switching the slot mapping
 // This ensures that unmapped eSIM ports never have "ghost" profiles enabled
 suspend fun TelephonyManager.updateSimSlotMapping(
-    euiccManager: EuiccChannelManager, newMapping: Collection<UiccSlotMapping>,
+    euiccManager: EuiccChannelManager,
+    newMapping: Collection<UiccSlotMapping>,
     currentMapping: Collection<UiccSlotMapping> = simSlotMapping
 ) {
     val unmapped = currentMapping.filterNot { mapping ->
@@ -44,7 +46,7 @@ suspend fun TelephonyManager.updateSimSlotMapping(
     }
 
     val undo: List<suspend () -> Unit> = unmapped.mapNotNull { mapping ->
-        euiccManager.withEuiccChannel(mapping.physicalSlotIndex, mapping.portIndex) { channel ->
+        euiccManager.withEuiccChannel(mapping.physicalSlotIndex, mapping.portIndex, seId) { channel ->
             if (!channel.port.card.isRemovable) {
                 channel.lpa.disableActiveProfileKeepIccId(false)
             } else {
@@ -55,10 +57,7 @@ suspend fun TelephonyManager.updateSimSlotMapping(
         }?.let { iccid ->
             // Generate undo closure because we can't keep reference to `channel` in the closure above
             {
-                euiccManager.withEuiccChannel(
-                    mapping.physicalSlotIndex,
-                    mapping.portIndex
-                ) { channel ->
+                euiccManager.withEuiccChannel(mapping.physicalSlotIndex, mapping.portIndex, seId) { channel ->
                     channel.lpa.enableProfile(iccid)
                 }
             }

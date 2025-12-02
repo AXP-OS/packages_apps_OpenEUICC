@@ -14,7 +14,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import im.angry.openeuicc.common.R
 import im.angry.openeuicc.service.EuiccChannelManagerService
-import im.angry.openeuicc.util.*
+import im.angry.openeuicc.util.ensureEuiccChannelManager
+import im.angry.openeuicc.util.euiccChannelManager
+import im.angry.openeuicc.util.euiccChannelManagerService
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -153,7 +155,12 @@ class DownloadWizardProgressFragment : DownloadWizardActivity.DownloadWizardStep
         } else {
             euiccChannelManagerService.waitForForegroundTask()
 
-            val (slotId, portId) = euiccChannelManager.withEuiccChannel(state.selectedLogicalSlot) { channel ->
+            val (logicalSlotId, seId) = DownloadWizardSlotSelectFragment.decodeSyntheticSlotId(state.selectedSyntheticSlotId)
+
+            val (slotId, portId) = euiccChannelManager.withEuiccChannel(
+                logicalSlotId,
+                seId
+            ) { channel ->
                 Pair(channel.slotId, channel.portId)
             }
 
@@ -163,6 +170,7 @@ class DownloadWizardProgressFragment : DownloadWizardActivity.DownloadWizardStep
             val ret = euiccChannelManagerService.launchProfileDownloadTask(
                 slotId,
                 portId,
+                seId,
                 state.smdp,
                 state.matchingId,
                 state.confirmationCode,

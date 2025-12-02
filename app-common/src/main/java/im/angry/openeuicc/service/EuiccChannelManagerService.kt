@@ -12,8 +12,11 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import im.angry.openeuicc.common.R
+import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.core.EuiccChannelManager
-import im.angry.openeuicc.util.*
+import im.angry.openeuicc.util.OpenEuiccContextMarker
+import im.angry.openeuicc.util.beginTrackedOperation
+import im.angry.openeuicc.util.switchProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.BufferOverflow
@@ -380,6 +383,7 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
     fun launchProfileDownloadTask(
         slotId: Int,
         portId: Int,
+        seId: EuiccChannel.SecureElementId,
         smdp: String,
         matchingId: String?,
         confirmationCode: String?,
@@ -390,8 +394,8 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
             getString(R.string.task_profile_download_failure),
             R.drawable.ic_task_sim_card_download
         ) {
-            euiccChannelManager.beginTrackedOperation(slotId, portId) {
-                euiccChannelManager.withEuiccChannel(slotId, portId) { channel ->
+            euiccChannelManager.beginTrackedOperation(slotId, portId, seId) {
+                euiccChannelManager.withEuiccChannel(slotId, portId, seId) { channel ->
                     channel.lpa.downloadProfile(
                         smdp,
                         matchingId,
@@ -413,6 +417,7 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
     fun launchProfileRenameTask(
         slotId: Int,
         portId: Int,
+        seId: EuiccChannel.SecureElementId,
         iccid: String,
         name: String
     ): ForegroundTaskSubscriberFlow =
@@ -421,7 +426,7 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
             getString(R.string.task_profile_rename_failure),
             R.drawable.ic_task_rename
         ) {
-            euiccChannelManager.withEuiccChannel(slotId, portId) { channel ->
+            euiccChannelManager.withEuiccChannel(slotId, portId, seId) { channel ->
                 channel.lpa.setNickname(
                     iccid,
                     name
@@ -432,6 +437,7 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
     fun launchProfileDeleteTask(
         slotId: Int,
         portId: Int,
+        seId: EuiccChannel.SecureElementId,
         iccid: String
     ): ForegroundTaskSubscriberFlow =
         launchForegroundTask(
@@ -439,8 +445,8 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
             getString(R.string.task_profile_delete_failure),
             R.drawable.ic_task_delete
         ) {
-            euiccChannelManager.beginTrackedOperation(slotId, portId) {
-                euiccChannelManager.withEuiccChannel(slotId, portId) { channel ->
+            euiccChannelManager.beginTrackedOperation(slotId, portId, seId) {
+                euiccChannelManager.withEuiccChannel(slotId, portId, seId) { channel ->
                     channel.lpa.deleteProfile(iccid)
                 }
 
@@ -453,6 +459,7 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
     fun launchProfileSwitchTask(
         slotId: Int,
         portId: Int,
+        seId: EuiccChannel.SecureElementId,
         iccid: String,
         enable: Boolean, // Enable or disable the profile indicated in iccid
         reconnectTimeoutMillis: Long = 0 // 0 = do not wait for reconnect
@@ -462,9 +469,9 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
             getString(R.string.task_profile_switch_failure),
             R.drawable.ic_task_switch
         ) {
-            euiccChannelManager.beginTrackedOperation(slotId, portId) {
+            euiccChannelManager.beginTrackedOperation(slotId, portId, seId) {
                 val (response, refreshed) =
-                    euiccChannelManager.withEuiccChannel(slotId, portId) { channel ->
+                    euiccChannelManager.withEuiccChannel(slotId, portId, seId) { channel ->
                         val refresh = preferenceRepository.refreshAfterSwitchFlow.first()
                         val response = channel.lpa.switchProfile(iccid, enable, refresh)
                         if (response || !refresh) {
@@ -510,14 +517,18 @@ class EuiccChannelManagerService : LifecycleService(), OpenEuiccContextMarker {
             }
         }
 
-    fun launchMemoryReset(slotId: Int, portId: Int): ForegroundTaskSubscriberFlow =
+    fun launchMemoryReset(
+        slotId: Int,
+        portId: Int,
+        seId: EuiccChannel.SecureElementId
+    ): ForegroundTaskSubscriberFlow =
         launchForegroundTask(
             getString(R.string.task_euicc_memory_reset),
             getString(R.string.task_euicc_memory_reset_failure),
             R.drawable.ic_euicc_memory_reset
         ) {
-            euiccChannelManager.beginTrackedOperation(slotId, portId) {
-                euiccChannelManager.withEuiccChannel(slotId, portId) { channel ->
+            euiccChannelManager.beginTrackedOperation(slotId, portId, seId) {
+                euiccChannelManager.withEuiccChannel(slotId, portId, seId) { channel ->
                     channel.lpa.euiccMemoryReset()
                 }
 

@@ -16,6 +16,9 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.ProgressBar
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.adapter.FragmentStateAdapter
@@ -24,7 +27,9 @@ import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import im.angry.openeuicc.common.R
 import im.angry.openeuicc.core.EuiccChannelManager
-import im.angry.openeuicc.util.*
+import im.angry.openeuicc.ui.wizard.DownloadWizardActivity
+import im.angry.openeuicc.util.OpenEuiccContextMarker
+import im.angry.openeuicc.util.setupToolbarInsets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
@@ -112,10 +117,12 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }
+
             R.id.reload -> {
                 refresh()
                 true
             }
+
             else -> super.onOptionsItemSelected(item)
         }
 
@@ -149,21 +156,27 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
         euiccChannelManager.flowInternalEuiccPorts().onEach { (slotId, portId) ->
             Log.d(TAG, "slot $slotId port $portId")
 
-            euiccChannelManager.withEuiccChannel(slotId, portId) { channel ->
-                if (preferenceRepository.verboseLoggingFlow.first()) {
-                    Log.d(TAG, channel.lpa.eID)
-                }
-                // Request the system to refresh the list of profiles every time we start
-                // Note that this is currently supposed to be no-op when unprivileged,
-                // but it could change in the future
-                euiccChannelManager.notifyEuiccProfilesChanged(channel.logicalSlotId)
+            euiccChannelManager.flowEuiccSecureElements(slotId, portId).onEach { seId ->
+                euiccChannelManager.withEuiccChannel(slotId, portId, seId) { channel ->
+                    if (preferenceRepository.verboseLoggingFlow.first()) {
+                        Log.d(TAG, channel.lpa.eID)
+                    }
+                    // Request the system to refresh the list of profiles every time we start
+                    // Note that this is currently supposed to be no-op when unprivileged,
+                    // but it could change in the future
+                    euiccChannelManager.notifyEuiccProfilesChanged(channel.logicalSlotId)
 
-                val channelName =
-                    appContainer.customizableTextProvider.formatInternalChannelName(channel.logicalSlotId)
-                newPages.add(Page(channel.logicalSlotId, channelName) {
-                    appContainer.uiComponentFactory.createEuiccManagementFragment(slotId, portId)
-                })
-            }
+                    val channelName =
+                        appContainer.customizableTextProvider.formatNonUsbChannelName(channel.logicalSlotId)
+                    newPages.add(Page(channel.logicalSlotId, channelName) {
+                        appContainer.uiComponentFactory.createEuiccManagementFragment(
+                            slotId,
+                            portId,
+                            seId
+                        )
+                    })
+                }
+            }.collect()
         }.collect()
 
         // If USB readers exist, add them at the very last
@@ -208,6 +221,8 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
             ensureNotificationPermissions()
         }
 
+        ShortcutManagerCompat.setDynamicShortcuts(this, buildShortcuts().take(4))
+
         refreshing = false
     }
 
@@ -225,5 +240,16 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
 
             init(fromUsbEvent) // will set refreshing = false
         }
+    }
+
+    protected open fun buildShortcuts(): List<ShortcutInfoCompat> {
+        val downloadShortcut = ShortcutInfoCompat.Builder(this, "download")
+            .setShortLabel(getString(R.string.profile_download))
+            .setIcon(IconCompat.createWithResource(this, R.drawable.ic_task_sim_card_download))
+            .setIntent(Intent(this, DownloadWizardActivity::class.java).apply {
+                action = Intent.ACTION_VIEW
+            })
+            .build()
+        return listOf(downloadShortcut)
     }
 }

@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
  * or when this instance is destroyed.
  *
  * To precisely control the lifecycle of this object itself (and thus its cached channels),
- * all other compoents must access EuiccChannelManager objects through EuiccChannelManagerService.
+ * all other components must access EuiccChannelManager objects through EuiccChannelManagerService.
  * Holding references independent of EuiccChannelManagerService is unsupported.
  */
 interface EuiccChannelManager {
@@ -36,6 +36,14 @@ interface EuiccChannelManager {
      * granted by the user.
      */
     fun flowAllOpenEuiccPorts(): Flow<Pair<Int, Int>>
+
+    /**
+     * Iterate over all the Secure Elements available on one eUICC.
+     *
+     * This is going to almost always return only 1 result, except in the case where
+     * a card has multiple SEs.
+     */
+    fun flowEuiccSecureElements(slotId: Int, portId: Int): Flow<EuiccChannel.SecureElementId>
 
     /**
      * Scan all possible USB devices for CCID readers that may contain eUICC cards.
@@ -67,7 +75,7 @@ interface EuiccChannelManager {
      */
     suspend fun findAvailablePorts(physicalSlotId: Int): List<Int>
 
-    class EuiccChannelNotFoundException: Exception("EuiccChannel not found")
+    class EuiccChannelNotFoundException : Exception("EuiccChannel not found")
 
     /**
      * Find a EuiccChannel by its slot and port, then run a callback with a reference to it.
@@ -78,19 +86,12 @@ interface EuiccChannelManager {
      *
      * If a channel for that slot / port is not found, EuiccChannelNotFoundException is thrown
      */
-    suspend fun <R> withEuiccChannel(
-        physicalSlotId: Int,
-        portId: Int,
-        fn: suspend (EuiccChannel) -> R
-    ): R
+    suspend fun <R> withEuiccChannel(physicalSlotId: Int, portId: Int, seId: EuiccChannel.SecureElementId, fn: suspend (EuiccChannel) -> R): R
 
     /**
-     * Same as withEuiccChannel(Int, Int, (EuiccChannel) -> R) but instead uses logical slot ID
+     * Same as withEuiccChannel(Int, Int, SecureElementId, (EuiccChannel) -> R) but instead uses logical slot ID
      */
-    suspend fun <R> withEuiccChannel(
-        logicalSlotId: Int,
-        fn: suspend (EuiccChannel) -> R
-    ): R
+    suspend fun <R> withEuiccChannel(logicalSlotId: Int, seId: EuiccChannel.SecureElementId, fn: suspend (EuiccChannel) -> R): R
 
     /**
      * Invalidate all EuiccChannels previously cached by this Manager

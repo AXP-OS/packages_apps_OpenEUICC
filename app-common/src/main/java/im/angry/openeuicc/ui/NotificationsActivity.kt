@@ -1,6 +1,7 @@
 package im.angry.openeuicc.ui
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.os.Bundle
 import android.text.Html
 import android.view.ContextMenu
@@ -20,19 +21,24 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import im.angry.openeuicc.common.R
+import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.core.EuiccChannelManager
-import im.angry.openeuicc.util.*
+import im.angry.openeuicc.util.OpenEuiccContextMarker
+import im.angry.openeuicc.util.displayName
+import im.angry.openeuicc.util.setupRootViewInsets
+import im.angry.openeuicc.util.setupToolbarInsets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.typeblog.lpac_jni.LocalProfileNotification
 
-class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
+class NotificationsActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var notificationList: RecyclerView
     private val notificationAdapter = NotificationAdapter()
 
     private var logicalSlotId = -1
+    private var seId = EuiccChannel.SecureElementId.DEFAULT
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -49,20 +55,28 @@ class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
     }
 
     override fun onInit() {
-        notificationList.layoutManager =
-            LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
-        notificationList.addItemDecoration(DividerItemDecoration(this, LinearLayoutManager.VERTICAL))
-        notificationList.adapter = notificationAdapter
-        registerForContextMenu(notificationList)
+        notificationList.apply {
+            val context = this@NotificationsActivity
+            adapter = notificationAdapter
+            layoutManager = LinearLayoutManager(context, RecyclerView.VERTICAL, false)
+            addItemDecoration(DividerItemDecoration(context, LinearLayoutManager.VERTICAL))
+            registerForContextMenu(this)
+        }
 
         logicalSlotId = intent.getIntExtra("logicalSlotId", 0)
+        seId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra("seId", EuiccChannel.SecureElementId::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra("seId")
+        } ?: EuiccChannel.SecureElementId.DEFAULT
 
         // This is slightly different from the MainActivity logic
         // due to the length (we don't want to display the full USB product name)
         val channelTitle = if (logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
             getString(R.string.channel_type_usb)
         } else {
-            appContainer.customizableTextProvider.formatInternalChannelName(logicalSlotId)
+            appContainer.customizableTextProvider.formatNonUsbChannelName(logicalSlotId)
         }
 
         title = getString(R.string.profile_notifications_detailed_format, channelTitle)
@@ -86,6 +100,7 @@ class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
                 finish()
                 true
             }
+
             R.id.help -> {
                 AlertDialog.Builder(this, R.style.AlertDialogTheme).apply {
                     setMessage(R.string.profile_notifications_help)
@@ -96,6 +111,7 @@ class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
                 }
                 true
             }
+
             else -> super.onOptionsItemSelected(item)
         }
 
@@ -114,21 +130,20 @@ class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
     }
 
     private fun refresh() {
-       launchTask {
-           notificationAdapter.notifications =
-               euiccChannelManager.withEuiccChannel(logicalSlotId) { channel ->
-                   val nameMap = buildMap {
-                       for (profile in channel.lpa.profiles) {
-                           put(profile.iccid, profile.displayName)
-                       }
-                   }
+        launchTask {
+            notificationAdapter.notifications = withEuiccChannel { channel ->
+                val nameMap = channel.lpa.profiles
+                    .associate { Pair(it.iccid, it.displayName) }
 
-                   channel.lpa.notifications.map {
-                       LocalProfileNotificationWrapper(it, nameMap[it.iccid] ?: "???")
-                   }
-               }
-       }
+                channel.lpa.notifications.map {
+                    LocalProfileNotificationWrapper(it, nameMap[it.iccid] ?: "???")
+                }
+            }
+        }
     }
+
+    private suspend fun <R> withEuiccChannel(fn: suspend (EuiccChannel) -> R) =
+        euiccChannelManager.withEuiccChannel(logicalSlotId, seId, fn)
 
     data class LocalProfileNotificationWrapper(
         val inner: LocalProfileNotification,
@@ -136,7 +151,7 @@ class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
     )
 
     @SuppressLint("ClickableViewAccessibility")
-    inner class NotificationViewHolder(private val root: View):
+    inner class NotificationViewHolder(private val root: View) :
         RecyclerView.ViewHolder(root), View.OnCreateContextMenuListener, OnMenuItemClickListener {
         private val address: TextView = root.requireViewById(R.id.notification_address)
         private val sequenceNumber: TextView =
@@ -170,7 +185,8 @@ class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
                     LocalProfileNotification.Operation.Delete -> R.string.profile_notification_operation_delete
                     LocalProfileNotification.Operation.Enable -> R.string.profile_notification_operation_enable
                     LocalProfileNotification.Operation.Disable -> R.string.profile_notification_operation_disable
-                })
+                }
+            )
 
         fun updateNotification(value: LocalProfileNotificationWrapper) {
             notification = value
@@ -181,10 +197,13 @@ class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
                 value.inner.seqNumber
             )
             profileName.text = Html.fromHtml(
-                root.context.getString(R.string.profile_notification_name_format,
+                root.context.getString(
+                    R.string.profile_notification_name_format,
                     operationToLocalizedText(value.inner.profileManagementOperation),
-                    value.profileName, value.inner.iccid),
-                Html.FROM_HTML_MODE_COMPACT)
+                    value.profileName, value.inner.iccid
+                ),
+                Html.FROM_HTML_MODE_COMPACT
+            )
         }
 
         override fun onCreateContextMenu(
@@ -204,7 +223,7 @@ class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
                 R.id.notification_process -> {
                     launchTask {
                         withContext(Dispatchers.IO) {
-                            euiccChannelManager.withEuiccChannel(logicalSlotId) { channel ->
+                            withEuiccChannel { channel ->
                                 channel.lpa.handleNotification(notification.inner.seqNumber)
                             }
                         }
@@ -213,10 +232,11 @@ class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
                     }
                     true
                 }
+
                 R.id.notification_delete -> {
                     launchTask {
                         withContext(Dispatchers.IO) {
-                            euiccChannelManager.withEuiccChannel(logicalSlotId) { channel ->
+                            withEuiccChannel { channel ->
                                 channel.lpa.deleteNotification(notification.inner.seqNumber)
                             }
                         }
@@ -225,11 +245,12 @@ class NotificationsActivity: BaseEuiccAccessActivity(), OpenEuiccContextMarker {
                     }
                     true
                 }
+
                 else -> false
             }
     }
 
-    inner class NotificationAdapter: RecyclerView.Adapter<NotificationViewHolder>() {
+    inner class NotificationAdapter : RecyclerView.Adapter<NotificationViewHolder>() {
         var notifications: List<LocalProfileNotificationWrapper> = listOf()
             @SuppressLint("NotifyDataSetChanged")
             set(value) {

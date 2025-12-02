@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="no_euicc">在此设备上未检测到此应用程序可访问的可插拔 eUICC 卡。请插入兼容卡或 USB 读卡器。</string>
+    <string name="no_euicc">在此设备上未检测到此应用程序可访问的可插拔 eSIM 卡。请插入兼容卡或 USB 读卡器。</string>
     <string name="no_profile">此 eSIM 上还没有配置文件</string>
     <string name="euicc_info_unknown">未知</string>
     <string name="notification_help">帮助</string>
@@ -18,6 +18,7 @@
     <string name="profile_switch_timeout">等待 eSIM 芯片切换配置文件时超时。这可能是您手机基带固件中的一个错误。请尝试切换飞行模式、重新启动应用程序或重新启动手机</string>
     <string name="profile_switch_did_not_refresh">操作成功, 但是您手机的基带拒绝刷新。您可能需要切换飞行模式或重新启动，以便使用新的配置文件。</string>
     <string name="toast_profile_enable_failed">无法切换到新的 eSIM 配置文件。</string>
+    <string name="toast_profile_enable_cross_class">请手动禁用当前启用的配置文件，以便切换到此配置文件。</string>
     <string name="toast_profile_delete_confirm_text_mismatched">输入的确认文本不匹配</string>
     <string name="toast_iccid_copied">已复制 ICCID 到剪贴板</string>
     <string name="toast_eid_copied">已复制 EID 到剪贴板</string>
@@ -34,7 +35,7 @@
     <string name="task_profile_delete_failure">无法删除 eSIM 配置文件</string>
     <string name="task_profile_switch">正在切换 eSIM 配置文件</string>
     <string name="task_profile_switch_failure">无法切换 eSIM 配置文件</string>
-    <string name="profile_download">添加新 eSIM</string>
+    <string name="profile_download">下载新 eSIM</string>
     <string name="profile_download_server">服务器 (RSP / SM-DP+)</string>
     <string name="profile_download_code">激活码</string>
     <string name="profile_download_confirmation_code">确认码 (可选)</string>
@@ -44,8 +45,6 @@
     <string name="euicc_info_fw_ver">产品固件版本</string>
     <string name="profile_download_confirmation_code_required">确认码 (必需)</string>
     <string name="profile_download_imei">IMEI (可选)</string>
-    <string name="profile_download_low_nvram_title">剩余空间不足</string>
-    <string name="profile_download_low_nvram_message">当前芯片的剩余空间不足，可能导致配置下载失败。\n是否继续下载？</string>
     <string name="download_wizard_error_suggest_network_unreachable">请连接到其他网络（例如在 Wi-Fi 和数据之间切换）后重试。</string>
     <string name="logs_saved_message">日志已保存到指定路径。需要通过其他 App 分享吗？</string>
     <string name="profile_rename_new_name">新昵称</string>
@@ -83,7 +82,7 @@
     <string name="pref_advanced_verbose_logging_desc">详细日志中包含敏感信息，开启此功能后请仅与你信任的人共享你的日志。</string>
     <string name="pref_advanced_logs">日志</string>
     <string name="pref_advanced_logs_desc">查看应用程序的最新调试日志</string>
-    <string name="pref_developer_isdr_aid_list_desc">某些品牌的可移除 eUICC 可能会使用自己的非标准 ISD-R AID，导致第三方应用无法访问。此 App 可以尝试使用此列表中添加的非标准 AID，但不能保证它们一定有效。</string>
+    <string name="pref_developer_isdr_aid_list_desc">某些品牌的可移除 eSIM 可能会使用自己的非标准 ISD-R AID，导致第三方应用无法访问。此 App 可以尝试使用此列表中添加的非标准 AID，但不能保证它们一定有效。</string>
     <string name="pref_developer_es10x_mss_desc">全局 ES10x MSS</string>
     <string-array name="pref_developer_es10x_entry_keys">
         <item>最佳效率</item>
@@ -132,8 +131,8 @@
     <string name="download_wizard_diagnostics_last_apdu_exception">上次 APDU 错误:</string>
     <string name="download_wizard_diagnostics_save">保存</string>
     <string name="download_wizard_diagnostics_file_template">%s 的错误诊断</string>
-    <string name="euicc_info">eUICC 详情</string>
-    <string name="euicc_info_activity_title">eUICC 详情 (%s)</string>
+    <string name="euicc_info">eSIM 详情</string>
+    <string name="euicc_info_activity_title">eSIM 详情 (%s)</string>
     <string name="euicc_info_access_mode">访问方式</string>
     <string name="euicc_info_removable">可插拔</string>
     <string name="euicc_info_sgp22_version">SGP.22 版本</string>
@@ -167,8 +166,6 @@
     <string name="euicc_memory_reset_hint_text">请在此处输入「%s」以确认</string>
     <string name="euicc_memory_reset_confirm_text">我确认擦除 EID 以 %s 结尾的芯片，并了解此操作不可逆</string>
     <string name="euicc_memory_reset_invoke_button">擦除</string>
-    <string name="pref_developer_euicc_memory_reset">允许擦除 eUICC</string>
-    <string name="pref_developer_euicc_memory_reset_desc">此操作是默认隐藏的危险操作。作为替代方案，您可以手动删除所有配置文件。</string>
     <string name="pref_developer_refresh_after_switch">向基带发送刷新命令</string>
     <string name="pref_developer_isdr_aid_list">自定义 ISD-R AID 列表</string>
     <string name="isdr_aid_list_restore_defaults">重置</string>
@@ -180,6 +177,7 @@
     <string name="download_wizard_error_eid_not_supported">您的设备或 eSIM 芯片的 EID 不受您的运营商支持。</string>
     <string name="download_wizard_error_eid_mismatch">此 eSIM 配置文件已被下载到另一台设备上。</string>
     <string name="download_wizard_error_profile_unreleased">此 eSIM 配置文件已被撤销。</string>
+    <string name="download_wizard_error_profile_unavailable">此 eSIM 配置文件不可用。</string>
     <string name="download_wizard_error_matching_id_refused">激活码无效。</string>
     <string name="download_wizard_error_profile_retries_exceeded">已超出 eSIM 配置文件的最大下载尝试次数。</string>
     <string name="download_wizard_error_confirmation_code_missing">下载此配置文件需要确认码。</string>
@@ -193,4 +191,5 @@
     <string name="download_wizard_error_suggest_insufficient_memory">请删除一些未使用的 eSIM 配置文件，然后重试</string>
     <string name="download_wizard_error_suggest_contact_carrier">请联系您的运营商寻求帮助。</string>
     <string name="download_wizard_error_suggest_contact_reissue">请联系您的运营商重新签发此 eSIM 配置文件。</string>
+    <string name="channel_name_format_se">逻辑卡槽 %d, SE %d</string>
 </resources>

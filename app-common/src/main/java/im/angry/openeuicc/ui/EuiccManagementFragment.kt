@@ -29,28 +29,46 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import net.typeblog.lpac_jni.LocalProfileInfo
 import im.angry.openeuicc.common.R
+import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.service.EuiccChannelManagerService
 import im.angry.openeuicc.service.EuiccChannelManagerService.Companion.waitDone
 import im.angry.openeuicc.ui.wizard.DownloadWizardActivity
-import im.angry.openeuicc.util.*
+import im.angry.openeuicc.util.EuiccChannelFragmentMarker
+import im.angry.openeuicc.util.EuiccProfilesChangedListener
+import im.angry.openeuicc.util.displayName
+import im.angry.openeuicc.util.enabled
+import im.angry.openeuicc.util.ensureEuiccChannelManager
+import im.angry.openeuicc.util.euiccChannelManager
+import im.angry.openeuicc.util.euiccChannelManagerService
+import im.angry.openeuicc.util.isEnabled
+import im.angry.openeuicc.util.isUsb
+import im.angry.openeuicc.util.newInstanceEuicc
+import im.angry.openeuicc.util.operational
+import im.angry.openeuicc.util.portId
+import im.angry.openeuicc.util.seId
+import im.angry.openeuicc.util.setupRootViewInsets
+import im.angry.openeuicc.util.slotId
+import im.angry.openeuicc.util.withEuiccChannel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import net.typeblog.lpac_jni.LocalProfileInfo
 
 open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
     EuiccChannelFragmentMarker {
     companion object {
         const val TAG = "EuiccManagementFragment"
 
-        fun newInstance(slotId: Int, portId: Int): EuiccManagementFragment =
-            newInstanceEuicc(EuiccManagementFragment::class.java, slotId, portId)
+        fun newInstance(
+            slotId: Int,
+            portId: Int,
+            seId: EuiccChannel.SecureElementId
+        ): EuiccManagementFragment =
+            newInstanceEuicc(EuiccManagementFragment::class.java, slotId, portId, seId)
     }
 
     private lateinit var swipeRefresh: SwipeRefreshLayout
@@ -58,6 +76,7 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
     private lateinit var profileList: RecyclerView
     private var logicalSlotId: Int = -1
     private lateinit var eid: String
+    private var enabledProfile: LocalProfileInfo? = null
 
     private val adapter = EuiccProfileAdapter()
 
@@ -141,13 +160,14 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         menu.findItem(R.id.euicc_info).isVisible =
             logicalSlotId != -1
         menu.findItem(R.id.euicc_memory_reset).isVisible =
-            runBlocking { preferenceRepository.euiccMemoryResetFlow.first() }
+            enabledProfile == null
     }
 
     override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
         R.id.show_notifications -> {
             Intent(requireContext(), NotificationsActivity::class.java).apply {
                 putExtra("logicalSlotId", logicalSlotId)
+                putExtra("seId", seId)
                 startActivity(this)
             }
             true
@@ -156,13 +176,14 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         R.id.euicc_info -> {
             Intent(requireContext(), EuiccInfoActivity::class.java).apply {
                 putExtra("logicalSlotId", logicalSlotId)
+                putExtra("seId", seId)
                 startActivity(this)
             }
             true
         }
 
         R.id.euicc_memory_reset -> {
-            EuiccMemoryResetFragment.newInstance(slotId, portId, eid)
+            EuiccMemoryResetFragment.newInstance(slotId, portId, seId, eid)
                 .show(childFragmentManager, EuiccMemoryResetFragment.TAG)
             true
         }
@@ -207,6 +228,7 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         val profiles = withEuiccChannel { channel ->
             logicalSlotId = channel.logicalSlotId
             eid = channel.lpa.eID
+            enabledProfile = channel.lpa.profiles.enabled
             euiccChannelManager.notifyEuiccProfilesChanged(channel.logicalSlotId)
             if (unfilteredProfileListFlow.value)
                 channel.lpa.profiles
@@ -237,7 +259,7 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
 
             val err = euiccChannelManagerService
                 .launchProfileSwitchTask(
-                    slotId, portId, iccid, enable,
+                    slotId, portId, seId, iccid, enable,
                     reconnectTimeoutMillis = 30 * 1000
                 )
                 .waitDone()
@@ -290,7 +312,10 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         }
     }
 
-    protected open fun populatePopupWithProfileActions(popup: PopupMenu, profile: LocalProfileInfo) {
+    protected open fun populatePopupWithProfileActions(
+        popup: PopupMenu,
+        profile: LocalProfileInfo
+    ) {
         popup.inflate(R.menu.profile_options)
         if (!profile.isEnabled) return
         popup.menu.findItem(R.id.enable).isVisible = false
@@ -315,7 +340,7 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         }
     }
 
-    inner class FooterViewHolder: ViewHolder(FrameLayout(requireContext())) {
+    inner class FooterViewHolder : ViewHolder(FrameLayout(requireContext())) {
         init {
             itemView.layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -405,7 +430,7 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
             // cannot cross profile class enable profile
             // e.g: testing -> operational or operational -> testing
             canEnable = enabledProfile == null ||
-                    enabledProfile.profileClass == profile.profileClass
+                enabledProfile.profileClass == profile.profileClass
         }
 
         private fun showOptionsMenu() {
@@ -431,20 +456,36 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
                     }
                     true
                 }
+
                 R.id.disable -> {
                     enableOrDisableProfile(profile.iccid, false)
                     true
                 }
+
                 R.id.rename -> {
-                    ProfileRenameFragment.newInstance(slotId, portId, profile.iccid, profile.displayName)
+                    ProfileRenameFragment.newInstance(
+                        slotId,
+                        portId,
+                        seId,
+                        profile.iccid,
+                        profile.displayName
+                    )
                         .show(childFragmentManager, ProfileRenameFragment.TAG)
                     true
                 }
+
                 R.id.delete -> {
-                    ProfileDeleteFragment.newInstance(slotId, portId, profile.iccid, profile.displayName)
+                    ProfileDeleteFragment.newInstance(
+                        slotId,
+                        portId,
+                        seId,
+                        profile.iccid,
+                        profile.displayName
+                    )
                         .show(childFragmentManager, ProfileDeleteFragment.TAG)
                     true
                 }
+
                 else -> false
             }
     }
@@ -456,9 +497,11 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder =
             when (ViewHolder.Type.fromInt(viewType)) {
                 ViewHolder.Type.PROFILE -> {
-                    val view = LayoutInflater.from(parent.context).inflate(R.layout.euicc_profile, parent, false)
+                    val view = LayoutInflater.from(parent.context)
+                        .inflate(R.layout.euicc_profile, parent, false)
                     ProfileViewHolder(view)
                 }
+
                 ViewHolder.Type.FOOTER -> {
                     FooterViewHolder()
                 }
@@ -469,9 +512,11 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
                 position < profiles.size -> {
                     ViewHolder.Type.PROFILE.value
                 }
+
                 position >= profiles.size && position < profiles.size + footerViews.size -> {
                     ViewHolder.Type.FOOTER.value
                 }
+
                 else -> -1
             }
 
@@ -482,6 +527,7 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
                     holder.setEnabledProfile(profiles.enabled)
                     holder.setProfileSequenceNumber(position + 1)
                 }
+
                 is FooterViewHolder -> {
                     holder.attach(footerViews[position - profiles.size])
                 }

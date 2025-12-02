@@ -37,7 +37,6 @@ internal object PreferenceKeys {
     val REFRESH_AFTER_SWITCH = booleanPreferencesKey("refresh_after_switch")
     val UNFILTERED_PROFILE_LIST = booleanPreferencesKey("unfiltered_profile_list")
     val IGNORE_TLS_CERTIFICATE = booleanPreferencesKey("ignore_tls_certificate")
-    val EUICC_MEMORY_RESET = booleanPreferencesKey("euicc_memory_reset")
     val ISDR_AID_LIST = stringPreferencesKey("isdr_aid_list")
     val ES10X_MSS = intPreferencesKey("es10x_mss")
 }
@@ -50,13 +49,8 @@ internal object PreferenceConstants {
         # Refs: <https://euicc-manual.osmocom.org/docs/lpa/applet-id-oem/>
 
         # eUICC standard
+        # Even if this AID is deleted here, it will still be attempted as the last resort.
         $EUICC_DEFAULT_ISDR_AID
-
-        # ESTKme AUX (deprecated, use SE0 instead)
-        A06573746B6D65FFFFFFFF4953442D52
-
-        # ESTKme SE0
-        A06573746B6D65FFFF4953442D522030
 
         # eSIM.me
         A0000005591010000000008900000300
@@ -66,6 +60,17 @@ internal object PreferenceConstants {
 
         # Xesim
         A0000005591010FFFFFFFF8900000177
+        
+        # ESTKme SE0
+        # For multi-SE eSTK.me products, this will always be attempted even if removed from the list
+        ${ESTKme.ESTK_SE0_AID.encodeHex()}
+        
+        # ESTKme SE1
+        # For multi-SE eSTK.me products, this will always be attempted even if removed from the list
+        ${ESTKme.ESTK_SE1_AID.encodeHex()}
+        
+        # ESTKme AUX (deprecated, use SE0 instead)
+        A06573746B6D65FFFFFFFF4953442D52
     """.trimIndent()
 }
 
@@ -85,7 +90,6 @@ open class PreferenceRepository(private val context: Context) {
     val developerOptionsEnabledFlow = bindFlow(PreferenceKeys.DEVELOPER_OPTIONS_ENABLED, false)
     val unfilteredProfileListFlow = bindFlow(PreferenceKeys.UNFILTERED_PROFILE_LIST, false)
     val ignoreTLSCertificateFlow = bindFlow(PreferenceKeys.IGNORE_TLS_CERTIFICATE, false)
-    val euiccMemoryResetFlow = bindFlow(PreferenceKeys.EUICC_MEMORY_RESET, false)
     val isdrAidListFlow = bindFlow(
         PreferenceKeys.ISDR_AID_LIST,
         PreferenceConstants.DEFAULT_AID_LIST,

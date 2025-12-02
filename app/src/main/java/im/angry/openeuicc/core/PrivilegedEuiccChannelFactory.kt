@@ -3,9 +3,12 @@ package im.angry.openeuicc.core
 import android.content.Context
 import android.util.Log
 import im.angry.openeuicc.R
-import im.angry.openeuicc.util.*
+import im.angry.openeuicc.util.PrivilegedEuiccContextMarker
+import im.angry.openeuicc.util.RealUiccPortInfoCompat
+import im.angry.openeuicc.util.UiccPortInfoCompat
+import im.angry.openeuicc.util.encodeHex
+import im.angry.openeuicc.util.preferenceRepository
 import kotlinx.coroutines.flow.first
-import java.lang.IllegalArgumentException
 
 class PrivilegedEuiccChannelFactory(context: Context) : DefaultEuiccChannelFactory(context),
     PrivilegedEuiccContextMarker {
@@ -15,13 +18,14 @@ class PrivilegedEuiccChannelFactory(context: Context) : DefaultEuiccChannelFacto
     @Suppress("NAME_SHADOWING")
     override suspend fun tryOpenEuiccChannel(
         port: UiccPortInfoCompat,
-        isdrAid: ByteArray
+        isdrAid: ByteArray,
+        seId: EuiccChannel.SecureElementId,
     ): EuiccChannel? {
         val port = port as RealUiccPortInfoCompat
         if (port.card.isRemovable) {
             // Attempt unprivileged (OMAPI) before TelephonyManager
             // but still try TelephonyManager in case OMAPI is broken
-            super.tryOpenEuiccChannel(port, isdrAid)?.let { return it }
+            super.tryOpenEuiccChannel(port, isdrAid, seId)?.let { return it }
         }
 
         if (port.card.isEuicc || preferenceRepository.removableTelephonyManagerFlow.first()) {
@@ -40,6 +44,7 @@ class PrivilegedEuiccChannelFactory(context: Context) : DefaultEuiccChannelFacto
                         context.preferenceRepository.verboseLoggingFlow
                     ),
                     isdrAid,
+                    seId,
                     context.preferenceRepository.verboseLoggingFlow,
                     context.preferenceRepository.ignoreTLSCertificateFlow,
                     context.preferenceRepository.es10xMssFlow,
@@ -53,6 +58,6 @@ class PrivilegedEuiccChannelFactory(context: Context) : DefaultEuiccChannelFacto
             }
         }
 
-        return super.tryOpenEuiccChannel(port, isdrAid)
+        return super.tryOpenEuiccChannel(port, isdrAid, seId)
     }
 }

@@ -8,17 +8,17 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import im.angry.openeuicc.common.R
+import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.service.EuiccChannelManagerService.Companion.waitDone
 import im.angry.openeuicc.util.EuiccChannelFragmentMarker
-import im.angry.openeuicc.util.EuiccProfilesChangedListener
 import im.angry.openeuicc.util.ensureEuiccChannelManager
 import im.angry.openeuicc.util.euiccChannelManagerService
 import im.angry.openeuicc.util.newInstanceEuicc
 import im.angry.openeuicc.util.notifyEuiccProfilesChanged
 import im.angry.openeuicc.util.portId
+import im.angry.openeuicc.util.seId
 import im.angry.openeuicc.util.slotId
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
@@ -29,8 +29,8 @@ class EuiccMemoryResetFragment : DialogFragment(), EuiccChannelFragmentMarker {
 
         private const val FIELD_EID = "eid"
 
-        fun newInstance(slotId: Int, portId: Int, eid: String) =
-            newInstanceEuicc(EuiccMemoryResetFragment::class.java, slotId, portId) {
+        fun newInstance(slotId: Int, portId: Int, seId: EuiccChannel.SecureElementId, eid: String) =
+            newInstanceEuicc(EuiccMemoryResetFragment::class.java, slotId, portId, seId) {
                 putString(FIELD_EID, eid)
             }
     }
@@ -103,7 +103,7 @@ class EuiccMemoryResetFragment : DialogFragment(), EuiccChannelFragmentMarker {
             ensureEuiccChannelManager()
             euiccChannelManagerService.waitForForegroundTask()
 
-            euiccChannelManagerService.launchMemoryReset(slotId, portId)
+            euiccChannelManagerService.launchMemoryReset(slotId, portId, seId)
                 .onStart {
                     parentFragment?.notifyEuiccProfilesChanged()
 

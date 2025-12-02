@@ -1,12 +1,12 @@
 package im.angry.openeuicc.ui
 
 import android.content.pm.PackageManager
-import android.provider.Settings
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.widget.Toast
 import im.angry.easyeuicc.R
+import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.util.SIMToolkit
 import im.angry.openeuicc.util.newInstanceEuicc
 import im.angry.openeuicc.util.slotId
@@ -16,8 +16,12 @@ class UnprivilegedEuiccManagementFragment : EuiccManagementFragment() {
     companion object {
         const val TAG = "UnprivilegedEuiccManagementFragment"
 
-        fun newInstance(slotId: Int, portId: Int): EuiccManagementFragment =
-            newInstanceEuicc(UnprivilegedEuiccManagementFragment::class.java, slotId, portId)
+        fun newInstance(
+            slotId: Int,
+            portId: Int,
+            seId: EuiccChannel.SecureElementId
+        ): EuiccManagementFragment =
+            newInstanceEuicc(UnprivilegedEuiccManagementFragment::class.java, slotId, portId, seId)
     }
 
     private val stk by lazy {

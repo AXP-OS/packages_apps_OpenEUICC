@@ -13,12 +13,15 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import im.angry.openeuicc.common.R
-import im.angry.openeuicc.util.*
+import im.angry.openeuicc.util.PreferenceFlowWrapper
+import im.angry.openeuicc.util.preferenceRepository
+import im.angry.openeuicc.util.selfAppVersion
+import im.angry.openeuicc.util.setupRootViewInsets
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
-open class SettingsFragment: PreferenceFragmentCompat() {
+open class SettingsFragment : PreferenceFragmentCompat() {
     private lateinit var developerPref: PreferenceCategory
 
     // Hidden developer options switch
@@ -80,9 +83,6 @@ open class SettingsFragment: PreferenceFragmentCompat() {
 
         requirePreference<CheckBoxPreference>("pref_developer_refresh_after_switch")
             .bindBooleanFlow(preferenceRepository.refreshAfterSwitchFlow)
-
-        requirePreference<CheckBoxPreference>("pref_developer_euicc_memory_reset")
-            .bindBooleanFlow(preferenceRepository.euiccMemoryResetFlow)
 
         requirePreference<ListPreference>("pref_developer_es10x_mss")
             .bindIntFlow(preferenceRepository.es10xMssFlow, 63)

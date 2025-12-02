@@ -6,10 +6,16 @@ import android.hardware.usb.UsbManager
 import android.telephony.SubscriptionManager
 import android.util.Log
 import im.angry.openeuicc.core.usb.UsbCcidContext
-import im.angry.openeuicc.core.usb.smartCard
 import im.angry.openeuicc.core.usb.interfaces
+import im.angry.openeuicc.core.usb.smartCard
 import im.angry.openeuicc.di.AppContainer
-import im.angry.openeuicc.util.*
+import im.angry.openeuicc.util.FakeUiccCardInfoCompat
+import im.angry.openeuicc.util.UiccCardInfoCompat
+import im.angry.openeuicc.util.UiccPortInfoCompat
+import im.angry.openeuicc.util.VendorAidDecider
+import im.angry.openeuicc.util.activeModemCountCompat
+import im.angry.openeuicc.util.parseIsdrAidList
+import im.angry.openeuicc.util.queryVendorAidListTransformation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -32,7 +38,7 @@ open class DefaultEuiccChannelManager(
 
     private val channelCache = mutableListOf<EuiccChannel>()
 
-    private var usbChannel: EuiccChannel? = null
+    private var usbChannels = mutableListOf<EuiccChannel>()
 
     private val lock = Mutex()
 
@@ -51,37 +57,73 @@ open class DefaultEuiccChannelManager(
     protected open val uiccCards: Collection<UiccCardInfoCompat>
         get() = (0..<tm.activeModemCountCompat).map { FakeUiccCardInfoCompat(it) }
 
-    private suspend inline fun tryOpenChannelFirstValidAid(openFn: (ByteArray) -> EuiccChannel?): EuiccChannel? {
-        val isdrAidList =
+    private suspend inline fun tryOpenChannelWithKnownAids(openFn: (ByteArray, EuiccChannel.SecureElementId) -> EuiccChannel?): List<EuiccChannel> {
+        var isdrAidList =
             parseIsdrAidList(appContainer.preferenceRepository.isdrAidListFlow.first())
+        val ret = mutableListOf<EuiccChannel>()
+        val openedAids = mutableListOf<ByteArray>()
+        var hasReset = false
+        var vendorDecider: VendorAidDecider? = null
+        var seId = 0
 
-        return isdrAidList.firstNotNullOfOrNull {
-            Log.i(TAG, "Opening channel, trying ISDR AID ${it.encodeHex()}")
+        outer@ while (true) {
+            for (aid in isdrAidList) {
+                if (vendorDecider != null && !vendorDecider.shouldOpenMore(openedAids, aid)) {
+                    break@outer
+                }
 
-            openFn(it)?.let { channel ->
-                if (channel.valid) {
-                    channel
-                } else {
-                    channel.close()
-                    null
+                val channel =
+                    openFn(aid, EuiccChannel.SecureElementId.createFromInt(seId))?.let { channel ->
+                        if (channel.valid) {
+                            seId += 1
+                            channel
+                        } else {
+                            channel.close()
+                            null
+                        }
+                    }
+
+                if (!hasReset) {
+                    val res = channel?.queryVendorAidListTransformation(isdrAidList)
+                    if (res != null) {
+                        // Reset the for loop since we needed to replace the AID list due to vendor-specific code
+                        Log.i(TAG, "AID list replaced, resetting open attempt")
+                        isdrAidList = res.first
+                        vendorDecider = res.second
+                        seId = 0
+                        ret.clear()
+                        openedAids.clear()
+                        channel.close()
+                        hasReset = true // Don't let anything reset again
+                        continue@outer
+                    }
+                }
+
+                if (channel != null) {
+                    ret.add(channel)
+                    openedAids.add(aid)
                 }
             }
+
+            // If we get here we should exit, since the inner loop completed without resetting
+            break
         }
+
+        return ret
     }
 
-    private suspend fun tryOpenEuiccChannel(port: UiccPortInfoCompat): EuiccChannel? {
+    private suspend fun tryOpenEuiccChannel(
+        port: UiccPortInfoCompat,
+        seId: EuiccChannel.SecureElementId = EuiccChannel.SecureElementId.DEFAULT
+    ): EuiccChannel? {
         lock.withLock {
             if (port.card.physicalSlotIndex == EuiccChannelManager.USB_CHANNEL_ID) {
-                return if (usbChannel != null && usbChannel!!.valid) {
-                    usbChannel
-                } else {
-                    usbChannel = null
-                    null
-                }
+                // We only compare seId because we assume we can only open 1 card from USB
+                return usbChannels.find { it.seId == seId }
             }
 
             val existing =
-                channelCache.find { it.slotId == port.card.physicalSlotIndex && it.portId == port.portIndex }
+                channelCache.find { it.slotId == port.card.physicalSlotIndex && it.portId == port.portIndex && it.seId == seId }
             if (existing != null) {
                 if (existing.valid && port.logicalSlotIndex == existing.logicalSlotId) {
                     return existing
@@ -96,12 +138,18 @@ open class DefaultEuiccChannelManager(
                 return null
             }
 
-            val channel =
-                tryOpenChannelFirstValidAid { euiccChannelFactory.tryOpenEuiccChannel(port, it) }
+            val channels =
+                tryOpenChannelWithKnownAids { isdrAid, seId ->
+                    euiccChannelFactory.tryOpenEuiccChannel(
+                        port,
+                        isdrAid,
+                        seId
+                    )
+                }
 
-            if (channel != null) {
-                channelCache.add(channel)
-                return channel
+            if (channels.isNotEmpty()) {
+                channelCache.addAll(channels)
+                return channels.find { it.seId == seId }
             } else {
                 Log.i(
                     TAG,
@@ -112,16 +160,19 @@ open class DefaultEuiccChannelManager(
         }
     }
 
-    protected suspend fun findEuiccChannelByLogicalSlot(logicalSlotId: Int): EuiccChannel? =
+    protected suspend fun findEuiccChannelByLogicalSlot(
+        logicalSlotId: Int,
+        seId: EuiccChannel.SecureElementId = EuiccChannel.SecureElementId.DEFAULT
+    ): EuiccChannel? =
         withContext(Dispatchers.IO) {
             if (logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
-                return@withContext usbChannel
+                return@withContext usbChannels.find { it.seId == seId }
             }
 
             for (card in uiccCards) {
                 for (port in card.ports) {
                     if (port.logicalSlotIndex == logicalSlotId) {
-                        return@withContext tryOpenEuiccChannel(port)
+                        return@withContext tryOpenEuiccChannel(port, seId)
                     }
                 }
             }
@@ -131,7 +182,7 @@ open class DefaultEuiccChannelManager(
 
     private suspend fun findAllEuiccChannelsByPhysicalSlot(physicalSlotId: Int): List<EuiccChannel>? {
         if (physicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
-            return usbChannel?.let { listOf(it) }
+            return usbChannels.ifEmpty { null }
         }
 
         for (card in uiccCards) {
@@ -142,14 +193,18 @@ open class DefaultEuiccChannelManager(
         return null
     }
 
-    private suspend fun findEuiccChannelByPort(physicalSlotId: Int, portId: Int): EuiccChannel? =
+    private suspend fun findEuiccChannelByPort(
+        physicalSlotId: Int,
+        portId: Int,
+        seId: EuiccChannel.SecureElementId = EuiccChannel.SecureElementId.DEFAULT
+    ): EuiccChannel? =
         withContext(Dispatchers.IO) {
             if (physicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
-                return@withContext usbChannel
+                return@withContext usbChannels.find { it.seId == seId }
             }
 
             uiccCards.find { it.physicalSlotIndex == physicalSlotId }?.let { card ->
-                card.ports.find { it.portIndex == portId }?.let { tryOpenEuiccChannel(it) }
+                card.ports.find { it.portIndex == portId }?.let { tryOpenEuiccChannel(it, seId) }
             }
         }
 
@@ -168,15 +223,17 @@ open class DefaultEuiccChannelManager(
                 return@withContext listOf(0)
             }
 
-            findAllEuiccChannelsByPhysicalSlot(physicalSlotId)?.map { it.portId } ?: listOf()
+            findAllEuiccChannelsByPhysicalSlot(physicalSlotId)?.map { it.portId }?.toSet()?.toList()
+                ?: listOf()
         }
 
     override suspend fun <R> withEuiccChannel(
         physicalSlotId: Int,
         portId: Int,
+        seId: EuiccChannel.SecureElementId,
         fn: suspend (EuiccChannel) -> R
     ): R {
-        val channel = findEuiccChannelByPort(physicalSlotId, portId)
+        val channel = findEuiccChannelByPort(physicalSlotId, portId, seId)
             ?: throw EuiccChannelManager.EuiccChannelNotFoundException()
         val wrapper = EuiccChannelWrapper(channel)
         try {
@@ -190,9 +247,10 @@ open class DefaultEuiccChannelManager(
 
     override suspend fun <R> withEuiccChannel(
         logicalSlotId: Int,
+        seId: EuiccChannel.SecureElementId,
         fn: suspend (EuiccChannel) -> R
     ): R {
-        val channel = findEuiccChannelByLogicalSlot(logicalSlotId)
+        val channel = findEuiccChannelByLogicalSlot(logicalSlotId, seId)
             ?: throw EuiccChannelManager.EuiccChannelNotFoundException()
         val wrapper = EuiccChannelWrapper(channel)
         try {
@@ -206,8 +264,8 @@ open class DefaultEuiccChannelManager(
 
     override suspend fun waitForReconnect(physicalSlotId: Int, portId: Int, timeoutMillis: Long) {
         if (physicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
-            usbChannel?.close()
-            usbChannel = null
+            usbChannels.forEach { it.close() }
+            usbChannels.clear()
         } else {
             // If there is already a valid channel, we close it proactively
             // Sometimes the current channel can linger on for a bit even after it should have become invalid
@@ -223,7 +281,7 @@ open class DefaultEuiccChannelManager(
                         // tryOpenUsbEuiccChannel() will always try to reopen the channel, even if
                         // a USB channel already exists
                         tryOpenUsbEuiccChannel()
-                        usbChannel!!
+                        usbChannels.getOrNull(0)!!
                     } else {
                         // tryOpenEuiccChannel() will automatically dispose of invalid channels
                         // and recreate when needed
@@ -264,6 +322,20 @@ open class DefaultEuiccChannelManager(
             }
         })
 
+    override fun flowEuiccSecureElements(
+        slotId: Int,
+        portId: Int
+    ): Flow<EuiccChannel.SecureElementId> = flow {
+        // Emit the "default" channel first
+        // TODO: This function below should really return a list, not just one SE
+        findEuiccChannelByPort(slotId, portId, seId = EuiccChannel.SecureElementId.DEFAULT)?.let {
+            emit(EuiccChannel.SecureElementId.DEFAULT)
+
+            channelCache.filter { it.slotId == slotId && it.portId == portId && it.seId != EuiccChannel.SecureElementId.DEFAULT }
+                .forEach { emit(it.seId) }
+        }
+    }
+
     override suspend fun tryOpenUsbEuiccChannel(): Pair<UsbDevice?, Boolean> =
         withContext(Dispatchers.IO) {
             usbManager.deviceList.values.forEach { device ->
@@ -277,15 +349,17 @@ open class DefaultEuiccChannelManager(
                     "Found CCID interface on ${device.deviceId}:${device.vendorId}, and has permission; trying to open channel"
                 )
 
-                val ccidCtx = UsbCcidContext.createFromUsbDevice(context, device, iface) ?: return@forEach
+                val ccidCtx =
+                    UsbCcidContext.createFromUsbDevice(context, device, iface) ?: return@forEach
 
                 try {
-                    val channel = tryOpenChannelFirstValidAid {
-                        euiccChannelFactory.tryOpenUsbEuiccChannel(ccidCtx, it)
+                    val channels = tryOpenChannelWithKnownAids { isdrAid, seId ->
+                        euiccChannelFactory.tryOpenUsbEuiccChannel(ccidCtx, isdrAid, seId)
                     }
-                    if (channel != null && channel.lpa.valid) {
+                    if (channels.isNotEmpty() && channels[0].valid) {
                         ccidCtx.allowDisconnect = true
-                        usbChannel = channel
+                        usbChannels.clear()
+                        usbChannels.addAll(channels)
                         return@withContext Pair(device, true)
                     }
                 } catch (e: Exception) {
@@ -309,8 +383,8 @@ open class DefaultEuiccChannelManager(
             channel.close()
         }
 
-        usbChannel?.close()
-        usbChannel = null
+        usbChannels.forEach { it.close() }
+        usbChannels.clear()
         channelCache.clear()
         euiccChannelFactory.cleanup()
     }

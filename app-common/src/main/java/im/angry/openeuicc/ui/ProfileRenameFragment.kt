@@ -12,8 +12,17 @@ import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputLayout
 import im.angry.openeuicc.common.R
+import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.service.EuiccChannelManagerService.Companion.waitDone
-import im.angry.openeuicc.util.*
+import im.angry.openeuicc.util.EuiccChannelFragmentMarker
+import im.angry.openeuicc.util.ensureEuiccChannelManager
+import im.angry.openeuicc.util.euiccChannelManagerService
+import im.angry.openeuicc.util.newInstanceEuicc
+import im.angry.openeuicc.util.notifyEuiccProfilesChanged
+import im.angry.openeuicc.util.portId
+import im.angry.openeuicc.util.seId
+import im.angry.openeuicc.util.setWidthPercent
+import im.angry.openeuicc.util.slotId
 import kotlinx.coroutines.launch
 import net.typeblog.lpac_jni.LocalProfileAssistant
 
@@ -24,11 +33,13 @@ class ProfileRenameFragment : BaseMaterialDialogFragment(), EuiccChannelFragment
 
         const val TAG = "ProfileRenameFragment"
 
-        fun newInstance(slotId: Int, portId: Int, iccid: String, currentName: String) =
-            newInstanceEuicc(ProfileRenameFragment::class.java, slotId, portId) {
-                putString(FIELD_ICCID, iccid)
-                putString(FIELD_CURRENT_NAME, currentName)
-            }
+        fun newInstance(
+            slotId: Int, portId: Int, seId: EuiccChannel.SecureElementId,
+            iccid: String, currentName: String
+        ) = newInstanceEuicc(ProfileRenameFragment::class.java, slotId, portId, seId) {
+            putString(FIELD_ICCID, iccid)
+            putString(FIELD_CURRENT_NAME, currentName)
+        }
     }
 
     private lateinit var toolbar: Toolbar
@@ -105,7 +116,7 @@ class ProfileRenameFragment : BaseMaterialDialogFragment(), EuiccChannelFragment
             ensureEuiccChannelManager()
             euiccChannelManagerService.waitForForegroundTask()
             val response = euiccChannelManagerService
-                .launchProfileRenameTask(slotId, portId, iccid, newName).waitDone()
+                .launchProfileRenameTask(slotId, portId, seId, iccid, newName).waitDone()
 
             when (response) {
                 is LocalProfileAssistant.ProfileNameTooLongException -> {
