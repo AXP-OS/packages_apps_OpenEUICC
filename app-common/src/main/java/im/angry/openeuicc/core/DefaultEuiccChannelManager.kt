@@ -9,13 +9,7 @@ import im.angry.openeuicc.core.usb.UsbCcidContext
 import im.angry.openeuicc.core.usb.interfaces
 import im.angry.openeuicc.core.usb.smartCard
 import im.angry.openeuicc.di.AppContainer
-import im.angry.openeuicc.util.FakeUiccCardInfoCompat
-import im.angry.openeuicc.util.UiccCardInfoCompat
-import im.angry.openeuicc.util.UiccPortInfoCompat
-import im.angry.openeuicc.util.VendorAidDecider
-import im.angry.openeuicc.util.activeModemCountCompat
-import im.angry.openeuicc.util.parseIsdrAidList
-import im.angry.openeuicc.util.queryVendorAidListTransformation
+import im.angry.openeuicc.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -57,7 +51,10 @@ open class DefaultEuiccChannelManager(
     protected open val uiccCards: Collection<UiccCardInfoCompat>
         get() = (0..<tm.activeModemCountCompat).map { FakeUiccCardInfoCompat(it) }
 
-    private suspend inline fun tryOpenChannelWithKnownAids(openFn: (ByteArray, EuiccChannel.SecureElementId) -> EuiccChannel?): List<EuiccChannel> {
+    private suspend inline fun tryOpenChannelWithKnownAids(
+        supportsMultiSE: Boolean,
+        openFn: (ByteArray, EuiccChannel.SecureElementId) -> EuiccChannel?
+    ): List<EuiccChannel> {
         var isdrAidList =
             parseIsdrAidList(appContainer.preferenceRepository.isdrAidListFlow.first())
         val ret = mutableListOf<EuiccChannel>()
@@ -102,6 +99,12 @@ open class DefaultEuiccChannelManager(
                 if (channel != null) {
                     ret.add(channel)
                     openedAids.add(aid)
+
+                    // This only exists because the UI side doesn't yet support multi-SE over USB readers properly.
+                    // TODO: Fix that and remove this.
+                    if (!supportsMultiSE) {
+                        break@outer
+                    }
                 }
             }
 
@@ -145,8 +148,9 @@ open class DefaultEuiccChannelManager(
                 return null
             }
 
+            // This function is not responsible for managing USB channels (see the initial check), so supportsMultiSE is true.
             val channels =
-                tryOpenChannelWithKnownAids { isdrAid, seId ->
+                tryOpenChannelWithKnownAids(supportsMultiSE = true) { isdrAid, seId ->
                     euiccChannelFactory.tryOpenEuiccChannel(
                         port,
                         isdrAid,
@@ -374,7 +378,8 @@ open class DefaultEuiccChannelManager(
                     UsbCcidContext.createFromUsbDevice(context, device, iface) ?: return@forEach
 
                 try {
-                    val channels = tryOpenChannelWithKnownAids { isdrAid, seId ->
+                    // TODO: We should also support multiple SEs over USB readers (the code here already does, UI doesn't yet)
+                    val channels = tryOpenChannelWithKnownAids(supportsMultiSE = false) { isdrAid, seId ->
                         euiccChannelFactory.tryOpenUsbEuiccChannel(ccidCtx, isdrAid, seId)
                     }
                     if (channels.isNotEmpty() && channels[0].valid) {

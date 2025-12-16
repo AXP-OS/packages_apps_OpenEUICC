@@ -13,11 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import im.angry.openeuicc.common.R
-import im.angry.openeuicc.util.readSelfLog
-import im.angry.openeuicc.util.selfAppVersion
-import im.angry.openeuicc.util.setupLogSaving
-import im.angry.openeuicc.util.setupRootViewInsets
-import im.angry.openeuicc.util.setupToolbarInsets
+import im.angry.openeuicc.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -55,14 +51,18 @@ class LogsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_logs)
         setSupportActionBar(requireViewById(R.id.toolbar))
-        setupToolbarInsets()
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
 
         swipeRefresh = requireViewById(R.id.swipe_refresh)
         scrollView = requireViewById(R.id.scroll_view)
         logText = requireViewById(R.id.log_text)
 
-        setupRootViewInsets(scrollView)
+        setupRootViewSystemBarInsets(
+            window.decorView.rootView, arrayOf(
+                this::activityToolbarInsetHandler,
+                mainViewPaddingInsetHandler(scrollView)
+            )
+        )
 
         swipeRefresh.setOnRefreshListener {
             lifecycleScope.launch {

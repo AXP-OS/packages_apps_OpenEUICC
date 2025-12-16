@@ -15,11 +15,7 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import im.angry.openeuicc.common.R
 import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.core.EuiccChannelManager
-import im.angry.openeuicc.util.displayName
-import im.angry.openeuicc.util.enabled
-import im.angry.openeuicc.util.ensureEuiccChannelManager
-import im.angry.openeuicc.util.euiccChannelManager
-import im.angry.openeuicc.util.formatFreeSpace
+import im.angry.openeuicc.util.*
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
@@ -27,7 +23,10 @@ import kotlinx.coroutines.launch
 
 class DownloadWizardSlotSelectFragment : DownloadWizardActivity.DownloadWizardStepFragment() {
     companion object {
-        fun decodeSyntheticSlotId(id: Int): Pair<Int, EuiccChannel.SecureElementId> =
+        internal fun encodeSyntheticSlotId(logicalSlotId: Int, seId: EuiccChannel.SecureElementId): Int =
+            (logicalSlotId shl 16) + seId.id
+
+        internal fun decodeSyntheticSlotId(id: Int): Pair<Int, EuiccChannel.SecureElementId> =
             Pair(id shr 16, EuiccChannel.SecureElementId.createFromInt(id and 0xFF))
     }
 

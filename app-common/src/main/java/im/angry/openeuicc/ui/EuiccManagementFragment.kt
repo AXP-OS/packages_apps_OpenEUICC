@@ -19,8 +19,6 @@ import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
@@ -34,22 +32,7 @@ import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.service.EuiccChannelManagerService
 import im.angry.openeuicc.service.EuiccChannelManagerService.Companion.waitDone
 import im.angry.openeuicc.ui.wizard.DownloadWizardActivity
-import im.angry.openeuicc.util.EuiccChannelFragmentMarker
-import im.angry.openeuicc.util.EuiccProfilesChangedListener
-import im.angry.openeuicc.util.displayName
-import im.angry.openeuicc.util.enabled
-import im.angry.openeuicc.util.ensureEuiccChannelManager
-import im.angry.openeuicc.util.euiccChannelManager
-import im.angry.openeuicc.util.euiccChannelManagerService
-import im.angry.openeuicc.util.isEnabled
-import im.angry.openeuicc.util.isUsb
-import im.angry.openeuicc.util.newInstanceEuicc
-import im.angry.openeuicc.util.operational
-import im.angry.openeuicc.util.portId
-import im.angry.openeuicc.util.seId
-import im.angry.openeuicc.util.setupRootViewInsets
-import im.angry.openeuicc.util.slotId
-import im.angry.openeuicc.util.withEuiccChannel
+import im.angry.openeuicc.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.StateFlow
@@ -108,18 +91,22 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
 
         val origFabMarginRight = (fab.layoutParams as ViewGroup.MarginLayoutParams).rightMargin
         val origFabMarginBottom = (fab.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin
-        ViewCompat.setOnApplyWindowInsetsListener(fab) { v, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
 
-            v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                rightMargin = origFabMarginRight + bars.right
-                bottomMargin = origFabMarginBottom + bars.bottom
+        setupRootViewSystemBarInsets(
+            view, arrayOf(
+            mainViewPaddingInsetHandler(profileList),
+            { insets ->
+                fab.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    rightMargin = origFabMarginRight + insets.right
+                    bottomMargin = origFabMarginBottom + insets.bottom
+                }
             }
+        ))
 
-            WindowInsetsCompat.CONSUMED
-        }
-
-        setupRootViewInsets(profileList)
+        profileList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(view: RecyclerView, newState: Int) =
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) fab.show() else fab.hide()
+        })
 
         return view
     }
@@ -132,10 +119,8 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
             LinearLayoutManager(view.context, LinearLayoutManager.VERTICAL, false)
 
         fab.setOnClickListener {
-            Intent(requireContext(), DownloadWizardActivity::class.java).apply {
-                putExtra("selectedLogicalSlot", logicalSlotId)
-                startActivity(this)
-            }
+            val intent = DownloadWizardActivity.newIntent(requireContext(), slotId, seId)
+            startActivity(intent)
         }
     }
 
@@ -322,7 +307,7 @@ open class EuiccManagementFragment : Fragment(), EuiccProfilesChangedListener,
         popup.menu.findItem(R.id.delete).isVisible = false
 
         // We hide the disable option by default to avoid "bricking" some cards that won't get
-        // recognized again by the phone's modem. However we don't have that worry if we are
+        // recognized again by the phone's modem. However, we don't have that worry if we are
         // accessing it through a USB card reader, or when the user explicitly opted in
         if (!isUsb && !disableSafeguardFlow.value) return
         popup.menu.findItem(R.id.disable).isVisible = true

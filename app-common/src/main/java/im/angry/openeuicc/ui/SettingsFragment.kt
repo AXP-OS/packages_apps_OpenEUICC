@@ -13,15 +13,12 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import im.angry.openeuicc.common.R
-import im.angry.openeuicc.util.PreferenceFlowWrapper
-import im.angry.openeuicc.util.preferenceRepository
-import im.angry.openeuicc.util.selfAppVersion
-import im.angry.openeuicc.util.setupRootViewInsets
+import im.angry.openeuicc.util.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
-open class SettingsFragment : PreferenceFragmentCompat() {
+open class SettingsFragment : PreferenceFragmentCompat(), OpenEuiccContextMarker {
     private lateinit var developerPref: PreferenceCategory
 
     // Hidden developer options switch
@@ -90,6 +87,13 @@ open class SettingsFragment : PreferenceFragmentCompat() {
         requirePreference<Preference>("pref_developer_isdr_aid_list").apply {
             intent = Intent(requireContext(), IsdrAidListActivity::class.java)
         }
+
+        requirePreference<Preference>("pref_info_website").apply {
+            val uri = appContainer.customizableTextProvider.websiteUri ?: return@apply
+            isVisible = true
+            summary = uri.buildUpon().clearQuery().build().toString()
+            intent = Intent(/* action = */ Intent.ACTION_VIEW, uri)
+        }
     }
 
     protected fun <T : Preference> requirePreference(key: CharSequence) =
@@ -97,7 +101,9 @@ open class SettingsFragment : PreferenceFragmentCompat() {
 
     override fun onStart() {
         super.onStart()
-        setupRootViewInsets(requireView().requireViewById(R.id.recycler_view))
+        setupRootViewSystemBarInsets(requireView(), arrayOf(
+            mainViewPaddingInsetHandler(requireView().requireViewById(R.id.recycler_view))
+        ))
     }
 
     @Suppress("UNUSED_PARAMETER")
