@@ -13,6 +13,11 @@
         android:theme="@style/Theme.OpenEUICC"
         tools:targetApi="tiramisu">
 
+        <!-- https://web.dev/get-installed-related-apps/?hl=en -->
+        <meta-data
+            android:name="asset_statements"
+            android:resource="@string/asset_statements" />
+
         <activity
             android:name="im.angry.openeuicc.ui.UnprivilegedMainActivity"
             android:exported="true">

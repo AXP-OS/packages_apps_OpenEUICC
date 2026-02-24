@@ -24,6 +24,8 @@ android {
         applicationId = "im.angry.easyeuicc"
         minSdk = 28
         targetSdk = 35
+
+        emitAssetStatements("https://easyeuicc.org", "https://preview.easyeuicc.org")
     }
 
     buildTypes {

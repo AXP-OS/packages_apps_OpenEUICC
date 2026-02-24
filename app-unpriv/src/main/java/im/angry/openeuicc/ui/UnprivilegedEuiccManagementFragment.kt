@@ -34,7 +34,7 @@ class UnprivilegedEuiccManagementFragment : EuiccManagementFragment() {
     override fun onPrepareOptionsMenu(menu: Menu) {
         super.onPrepareOptionsMenu(menu)
         menu.findItem(R.id.open_sim_toolkit).apply {
-            intent = stk[slotId]?.intent
+            intent = stk[slotId]
             isVisible = intent != null
         }
     }

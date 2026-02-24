@@ -173,6 +173,8 @@ open class QuickCompatibilityFragment : Fragment(), UnprivilegedEuiccContextMark
         appendLine("MODEL: ${Build.MODEL}")
         appendLine("VERSION.RELEASE: ${Build.VERSION.RELEASE}")
         appendLine("VERSION.SDK_INT: ${Build.VERSION.SDK_INT}")
+        val carrier = getSystemProperty("ro.carrier")
+        if (carrier != "unknown") appendLine("CARRIER: $carrier")
     }
 }
 
@@ -181,3 +183,8 @@ private inline val Reader.isSIM: Boolean
 
 private inline val Reader.slotIndex: Int
     get() = (name.replace("SIM", "").toIntOrNull() ?: 1) - 1 // 0-based index
+
+fun getSystemProperty(name: String): String =
+    Runtime.getRuntime().exec(arrayOf("getprop", name))
+        .inputStream.bufferedReader()
+        .use { it.readLine() }.ifEmpty { "unknown" }

@@ -47,10 +47,9 @@ open class SettingsFragment : PreferenceFragmentCompat(), OpenEuiccContextMarker
 
         requirePreference<Preference>("pref_advanced_language").apply {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return@apply
-            isVisible = true
-            intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
-                data = Uri.fromParts("package", requireContext().packageName, null)
-            }
+            val uri = Uri.fromParts("package", requireContext().packageName, null)
+            intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS, uri)
+            isVisible = intent!!.resolveActivity(requireContext().packageManager) != null
         }
 
         requirePreference<Preference>("pref_advanced_logs").apply {
