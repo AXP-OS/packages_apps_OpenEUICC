@@ -1,57 +1,65 @@
 package im.angry.openeuicc.build
 
-import com.android.build.gradle.internal.api.ApkVariantOutputImpl
-import com.android.build.gradle.internal.dsl.BaseAppModuleExtension
+import com.android.build.api.variant.ApplicationAndroidComponentsExtension
+import com.android.build.gradle.BaseExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.kotlin.dsl.configure
 import java.io.ByteArrayOutputStream
 
-val Project.gitVersionCode: Int
-    get() =
-        try {
-            val stdout = ByteArrayOutputStream()
-            exec {
-                commandLine("git", "rev-list", "--first-parent", "--count", "HEAD")
-                standardOutput = stdout
-            }
-            stdout.toString("utf-8").trim('\n').toInt()
-        } catch (_: Exception) {
-            0
-        }
+class MyVersioningPlugin : Plugin<Project> {
 
-fun Project.getGitVersionName(vararg args: String): String =
-    try {
-        val stdout = ByteArrayOutputStream()
-        exec {
-            commandLine("git", "describe", "--always", "--tags", "--dirty", *args)
-            standardOutput = stdout
+    override fun apply(project: Project) {
+
+        // early set on android.defaultConfig for Kotlin DSL visibility
+        project.plugins.withId("com.android.application") {
+
+            val versionName = resolveVersionName(project)
+            val versionCode = resolveVersionCode(project)
+
+            project.extensions.findByType(BaseExtension::class.java)?.apply {
+                defaultConfig.versionName = versionName
+                defaultConfig.versionCode = versionCode
+            }
+
+            // use androidComponents to ensure the variant API sees the correct version
+            project.extensions.getByType(
+                ApplicationAndroidComponentsExtension::class.java
+            ).finalizeDsl { extension ->
+                extension.defaultConfig.versionName = versionName
+                extension.defaultConfig.versionCode = versionCode
+            }
         }
-        stdout.toString("utf-8").trim('\n').removePrefix("unpriv-")
-    } catch (_: Exception) {
-        "Unknown"
     }
 
-
-class MyVersioningPlugin : Plugin<Project> {
-    override fun apply(target: Project) {
-        target.configure<BaseAppModuleExtension> {
-            defaultConfig {
-                versionCode = target.gitVersionCode
-                versionName = target.getGitVersionName()
-            }
-
-            applicationVariants.all {
-                if (name == "debug") {
-                    outputs.forEach {
-                        with(it as ApkVariantOutputImpl) {
-                            versionCodeOverride = (System.currentTimeMillis() / 1000).toInt()
-                            // always keep the format: <tag>-<commits>-g<hash>[-dirty]
-                            versionNameOverride = target.getGitVersionName("--long")
-                        }
-                    }
-                }
-            }
+    private fun resolveVersionName(project: Project): String {
+        project.rootProject.findProperty("versionName")?.toString()?.let {
+            if (it.isNotBlank()) return it
         }
+        return getGitVersionName(project)
+    }
+
+    private fun resolveVersionCode(project: Project): Int {
+        project.rootProject.findProperty("versionCode")?.toString()?.let {
+            if (it.isNotBlank()) return it.toInt()
+        }
+        return getGitVersionCode(project)
+    }
+
+    private fun getGitVersionName(project: Project): String {
+        val stdout = ByteArrayOutputStream()
+        project.exec {
+            commandLine("git", "describe", "--tags", "--dirty", "--always")
+            standardOutput = stdout
+        }
+        return stdout.toString().trim()
+    }
+
+    private fun getGitVersionCode(project: Project): Int {
+        val stdout = ByteArrayOutputStream()
+        project.exec {
+            commandLine("git", "rev-list", "--count", "HEAD")
+            standardOutput = stdout
+        }
+        return stdout.toString().trim().toInt()
     }
 }
