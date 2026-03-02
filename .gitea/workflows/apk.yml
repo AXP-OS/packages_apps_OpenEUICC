@@ -95,12 +95,13 @@ jobs:
         echo "BUILD_TOOL_VERSION=$BUILD_TOOL_VERSION" >> $GITHUB_ENV
         echo Last build tool version is: $BUILD_TOOL_VERSION
         # see: https://maven.google.com/web/index.html#com.android.tools.build:aapt2
-        #wget -q -O aapt.zip https://dl.google.com/android/maven2/com/android/tools/build/aapt2/8.3.2-10880808/aapt2-8.3.2-10880808-linux.jar
-        #unzip aapt.zip aapt2 && chmod +x aapt2
-        #OVER=$(./aapt2 dump badging apks/OpenEUICC.apk | grep "VersionName" | sed -e "s/.*versionName='//" -e "s/' .*//")
-        #OVER=$(date +%Y.%m.%d)
+        wget -q -O aapt.zip https://dl.google.com/android/maven2/com/android/tools/build/aapt2/8.3.2-10880808/aapt2-8.3.2-10880808-linux.jar
+        unzip aapt.zip aapt2 && chmod +x aapt2
+        realOVER=$(./aapt2 dump badging apks/OpenEUICC.apk | grep "VersionName" | sed -e "s/.*versionName='//" -e "s/' .*//")
         OVER=$(grep versionName gradle.properties| cut -d '=' -f2)
-        [ -z "$OVER" ] && echo "ERROR: empty version detected" && exit 3
+        [ -z "$OVER" -o -z "$realOVER" ] && echo "ERROR: empty version ($OVER,$realOVER) detected" && exit 2
+        [ "$OVER" != "$realOVER" ] && echo "ERROR: expected version does not match ($OVER,$realOVER)" && exit 3
+        
         echo "OPENEUICC_VERSION=$OVER" >> $GITHUB_ENV
         git_sha_short=$(git rev-parse --short "$GITHUB_SHA")
         echo "git_sha_short=$git_sha_short" >> $GITHUB_ENV
