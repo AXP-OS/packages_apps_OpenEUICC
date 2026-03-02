@@ -10,3 +10,7 @@ plugins {
 tasks.create<Delete>("clean") {
     delete = setOf(rootProject.buildDir)
 }
+
+// allow setting version override
+val versionNameOverride = (findProperty("versionName") as? String)?.ifEmpty { null }
+val versionCodeOverride = (findProperty("versionCode") as? String)?.toIntOrNull()
