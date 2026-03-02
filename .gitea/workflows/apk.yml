@@ -56,7 +56,7 @@ jobs:
       shell: bash
       run: |
         apt-get update >> /dev/null \
-          && apt-get -y install gawk >> /dev/null \
+          && apt-get -y install gawk jq curl >> /dev/null \
           && echo "prep ended successfully"
 
     - name: Build Release APK (privileged + unprivileged)
