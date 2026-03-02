@@ -107,9 +107,6 @@ jobs:
           echo "INFO: expected (base) version matched ($OVER,$realOVER)"
         fi
         
-
-        exit 4
-        
         echo "OPENEUICC_VERSION=$OVER" >> $GITHUB_ENV
         git_sha_short=$(git rev-parse --short "$GITHUB_SHA")
         echo "git_sha_short=$git_sha_short" >> $GITHUB_ENV
