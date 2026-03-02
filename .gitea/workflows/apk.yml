@@ -102,6 +102,8 @@ jobs:
         [ -z "$OVER" -o -z "$realOVER" ] && echo "ERROR: empty version ($OVER,$realOVER) detected" && exit 2
         [ "$OVER" != "$realOVER" ] && echo "ERROR: expected version does not match ($OVER,$realOVER)" && exit 3
         
+        exit 4
+        
         echo "OPENEUICC_VERSION=$OVER" >> $GITHUB_ENV
         git_sha_short=$(git rev-parse --short "$GITHUB_SHA")
         echo "git_sha_short=$git_sha_short" >> $GITHUB_ENV
