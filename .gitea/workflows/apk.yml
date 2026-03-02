@@ -173,7 +173,7 @@ jobs:
       repo: ${{ github.event.repository.name }} # without org!
       title: "${{ needs.build.outputs.apk_version }} (${{ needs.build.outputs.apk_version_code }})"
       tag: "${{ needs.build.outputs.apk_version }}_${{ needs.build.outputs.apk_version_code }}"
-      targetc: main
+      targetc: ${{ needs.build.outputs.apk_version_code }}
       pre: false
       #filepattern: '*.apk'
       #body:
@@ -189,7 +189,7 @@ jobs:
       repo: ${{ github.event.repository.name }} # without org!
       title: "${{ needs.build.outputs.apk_version }} (${{ needs.build.outputs.apk_version_code }})"
       tag: "${{ needs.build.outputs.apk_version }}_${{ needs.build.outputs.apk_version_code }}"
-      targetc: main
+      targetc: ${{ needs.build.outputs.apk_version_code }}
       pre: false
       #filepattern: '*.apk'
       #body:
