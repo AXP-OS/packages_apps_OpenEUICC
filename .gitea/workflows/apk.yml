@@ -100,8 +100,14 @@ jobs:
         realOVER=$(./aapt2 dump badging apks/OpenEUICC.apk | grep "VersionName" | sed -e "s/.*versionName='//" -e "s/' .*//")
         OVER=$(grep versionName gradle.properties| cut -d '=' -f2)
         [ -z "$OVER" -o -z "$realOVER" ] && echo "ERROR: empty version ($OVER,$realOVER) detected" && exit 2
-        [ "$OVER" != "$realOVER" ] && echo "ERROR: expected version does not match ($OVER,$realOVER)" && exit 3
+        if [[ "$OVER" =~ "$realOVER" ]];then
+          echo "ERROR: expected version does not match ($OVER,$realOVER)"
+          exit 3
+        else
+          echo "INFO: expected (base) version matched ($OVER,$realOVER)"
+        fi
         
+
         exit 4
         
         echo "OPENEUICC_VERSION=$OVER" >> $GITHUB_ENV
