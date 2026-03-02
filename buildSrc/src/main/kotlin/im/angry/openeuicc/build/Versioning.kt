@@ -20,35 +20,42 @@ val Project.gitVersionCode: Int
             0
         }
 
-fun Project.getGitVersionName(vararg args: String): String =
-    try {
-        val stdout = ByteArrayOutputStream()
-        exec {
-            commandLine("git", "describe", "--always", "--tags", "--dirty", *args)
-            standardOutput = stdout
+val Project.gitVersionName: String
+    get() =
+        try {
+            val stdout = ByteArrayOutputStream()
+            exec {
+                commandLine("git", "describe", "--always", "--tags", "--dirty")
+                standardOutput = stdout
+            }
+            stdout.toString("utf-8").trim('\n')
+        } catch (_: Exception) {
+            "Unknown"
         }
-        stdout.toString("utf-8").trim('\n').removePrefix("unpriv-")
-    } catch (_: Exception) {
-        "Unknown"
-    }
-
 
 class MyVersioningPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         target.configure<BaseAppModuleExtension> {
             defaultConfig {
-                versionCode = target.gitVersionCode
-                versionName = target.getGitVersionName()
+                versionCode = try {
+                    val versionOverride = System.getenv("VERSION_CODE")
+                    if (versionOverride != null) versionOverride.toInt() else gitVersionCode
+                } catch (e: Exception) {
+                    0
+                }
+                versionName = try {
+                    val versionOverride = System.getenv("VERSION_NAME")
+                    if (versionOverride != null) versionOverride.removePrefix("unpriv-") else gitVersionName
+                } catch (e: Exception) {
+                    "Unknown"
+                }
             }
 
             applicationVariants.all {
                 if (name == "debug") {
                     outputs.forEach {
-                        with(it as ApkVariantOutputImpl) {
-                            versionCodeOverride = (System.currentTimeMillis() / 1000).toInt()
-                            // always keep the format: <tag>-<commits>-g<hash>[-dirty]
-                            versionNameOverride = target.getGitVersionName("--long")
-                        }
+                        (it as ApkVariantOutputImpl).versionCodeOverride =
+                            (System.currentTimeMillis() / 1000).toInt()
                     }
                 }
             }
