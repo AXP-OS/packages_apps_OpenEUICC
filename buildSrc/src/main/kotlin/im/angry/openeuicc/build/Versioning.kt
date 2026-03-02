@@ -1,5 +1,6 @@
 package im.angry.openeuicc.build
 
+import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import com.android.build.gradle.BaseExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -8,29 +9,39 @@ import java.io.ByteArrayOutputStream
 class MyVersioningPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
+
+        // early set on android.defaultConfig for Kotlin DSL visibility
         project.plugins.withId("com.android.application") {
-            project.afterEvaluate {
 
-                val android = project.extensions.getByType(BaseExtension::class.java)
+            val versionName = resolveVersionName(project)
+            val versionCode = resolveVersionCode(project)
 
-                val versionName = resolveVersionName(project)
-                val versionCode = resolveVersionCode(project)
+            project.extensions.findByType(BaseExtension::class.java)?.apply {
+                defaultConfig.versionName = versionName
+                defaultConfig.versionCode = versionCode
+            }
 
-                android.defaultConfig.versionName = versionName
-                android.defaultConfig.versionCode = versionCode
+            // use androidComponents to ensure the variant API sees the correct version
+            project.extensions.getByType(
+                ApplicationAndroidComponentsExtension::class.java
+            ).finalizeDsl { extension ->
+                extension.defaultConfig.versionName = versionName
+                extension.defaultConfig.versionCode = versionCode
             }
         }
     }
 
     private fun resolveVersionName(project: Project): String {
-        val prop = project.rootProject.findProperty("versionName")?.toString()
-        if (!prop.isNullOrBlank()) return prop
+        project.rootProject.findProperty("versionName")?.toString()?.let {
+            if (it.isNotBlank()) return it
+        }
         return getGitVersionName(project)
     }
 
     private fun resolveVersionCode(project: Project): Int {
-        val prop = project.rootProject.findProperty("versionCode")?.toString()
-        if (!prop.isNullOrBlank()) return prop.toInt()
+        project.rootProject.findProperty("versionCode")?.toString()?.let {
+            if (it.isNotBlank()) return it.toInt()
+        }
         return getGitVersionCode(project)
     }
 
