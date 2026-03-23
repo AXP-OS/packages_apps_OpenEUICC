@@ -4,9 +4,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import androidx.core.widget.addTextChangedListener
 import com.google.android.material.textfield.TextInputLayout
 import im.angry.openeuicc.common.R
+import im.angry.openeuicc.util.*
 
 class DownloadWizardDetailsFragment : DownloadWizardActivity.DownloadWizardStepFragment() {
     private var inputComplete = false
@@ -16,17 +18,25 @@ class DownloadWizardDetailsFragment : DownloadWizardActivity.DownloadWizardStepF
     override val hasPrev: Boolean
         get() = true
 
-    private lateinit var smdp: TextInputLayout
-    private lateinit var matchingId: TextInputLayout
-    private lateinit var confirmationCode: TextInputLayout
-    private lateinit var imei: TextInputLayout
+    private val address: EditText by lazy {
+        requireView().requireViewById<TextInputLayout>(R.id.profile_download_server).editText!!
+    }
+    private val matchingId: EditText by lazy {
+        requireView().requireViewById<TextInputLayout>(R.id.profile_download_code).editText!!
+    }
+    private val confirmationCode: EditText by lazy {
+        requireView().requireViewById<TextInputLayout>(R.id.profile_download_confirmation_code).editText!!
+    }
+    private val imei: EditText by lazy {
+        requireView().requireViewById<TextInputLayout>(R.id.profile_download_imei).editText!!
+    }
 
     private fun saveState() {
-        state.smdp = smdp.editText!!.text.toString().trim()
+        state.smdp = address.text.toString().trim()
         // Treat empty inputs as null -- this is important for the download step
-        state.matchingId = matchingId.editText!!.text.toString().trim().ifBlank { null }
-        state.confirmationCode = confirmationCode.editText!!.text.toString().trim().ifBlank { null }
-        state.imei = imei.editText!!.text.toString().ifBlank { null }
+        state.matchingId = matchingId.text.toString().trim().ifBlank { null }
+        state.confirmationCode = confirmationCode.text.toString().trim().ifBlank { null }
+        state.imei = imei.text.toString().ifBlank { null }
     }
 
     override fun beforeNext() = saveState()
@@ -41,40 +51,30 @@ class DownloadWizardDetailsFragment : DownloadWizardActivity.DownloadWizardStepF
             DownloadWizardMethodSelectFragment()
         }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        val view = inflater.inflate(R.layout.fragment_download_details, container, false)
-        smdp = view.requireViewById(R.id.profile_download_server)
-        matchingId = view.requireViewById(R.id.profile_download_code)
-        confirmationCode = view.requireViewById(R.id.profile_download_confirmation_code)
-        imei = view.requireViewById(R.id.profile_download_imei)
-        smdp.editText!!.addTextChangedListener {
-            updateInputCompleteness()
-        }
-        confirmationCode.editText!!.addTextChangedListener {
-            updateInputCompleteness()
-        }
-        return view
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
+        inflater.inflate(R.layout.fragment_download_details, container, /* attachToRoot = */ false)
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        address.addTextChangedListener(onTextChanged = ::handlePasteLPAString)
+        address.addTextChangedListener { updateInputCompleteness() }
+        matchingId.addTextChangedListener(onTextChanged = ::handlePasteLPAString)
+        confirmationCode.addTextChangedListener { updateInputCompleteness() }
     }
 
     override fun onStart() {
         super.onStart()
-        smdp.editText!!.setText(state.smdp)
-        matchingId.editText!!.setText(state.matchingId)
-        confirmationCode.editText!!.setText(state.confirmationCode)
-        imei.editText!!.setText(state.imei)
+        address.setText(state.smdp)
+        matchingId.setText(state.matchingId)
+        confirmationCode.setText(state.confirmationCode)
+        imei.setText(state.imei)
         updateInputCompleteness()
 
         if (state.confirmationCodeRequired) {
-            confirmationCode.editText!!.requestFocus()
-            confirmationCode.editText!!.hint =
-                getString(R.string.profile_download_confirmation_code_required)
+            confirmationCode.requestFocus()
+            confirmationCode.setHint(R.string.profile_download_confirmation_code_required)
         } else {
-            confirmationCode.editText!!.hint =
-                getString(R.string.profile_download_confirmation_code)
+            confirmationCode.setHint(R.string.profile_download_confirmation_code)
         }
     }
 
@@ -83,10 +83,19 @@ class DownloadWizardDetailsFragment : DownloadWizardActivity.DownloadWizardStepF
         saveState()
     }
 
+    private fun handlePasteLPAString(text: CharSequence?, start: Int, before: Int, count: Int) {
+        if (start > 0 || before > 0) return // only handle insertions at the beginning
+        if (text == null || !text.startsWith("LPA:", ignoreCase = true)) return
+        val parsed = LPAString.parse(text)
+        address.setText(parsed.address)
+        matchingId.setText(parsed.matchingId)
+        if (parsed.confirmationCodeRequired) confirmationCode.requestFocus()
+    }
+
     private fun updateInputCompleteness() {
-        inputComplete = isValidAddress(smdp.editText!!.text)
+        inputComplete = isValidAddress(address.text)
         if (state.confirmationCodeRequired) {
-            inputComplete = inputComplete && confirmationCode.editText!!.text.isNotEmpty()
+            inputComplete = inputComplete && confirmationCode.text.isNotEmpty()
         }
         refreshButtons()
     }
@@ -98,11 +107,11 @@ private fun isValidAddress(input: CharSequence): Boolean {
     var port = 443
     if (input.contains(':')) {
         val portIndex = input.lastIndexOf(':')
-        fqdn = input.substring(0, portIndex)
+        fqdn = input.take(portIndex)
         port = input.substring(portIndex + 1, input.length).toIntOrNull(10) ?: 0
     }
     // see https://en.wikipedia.org/wiki/Port_(computer_networking)
-    if (port < 1 || port > 0xffff) return false
+    if (port !in 1..0xffff) return false
     // see https://en.wikipedia.org/wiki/Fully_qualified_domain_name
     if (fqdn.isEmpty() || fqdn.length > 255) return false
     for (part in fqdn.split('.')) {

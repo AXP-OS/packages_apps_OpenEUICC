@@ -6,7 +6,7 @@
 
     <include layout="@layout/toolbar_activity" />
 
-    <com.google.android.material.tabs.TabLayout
+    <im.angry.openeuicc.ui.widget.DynamicModeTabLayout
         android:id="@+id/main_tabs"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

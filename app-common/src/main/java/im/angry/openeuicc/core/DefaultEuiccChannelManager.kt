@@ -52,7 +52,6 @@ open class DefaultEuiccChannelManager(
         get() = (0..<tm.activeModemCountCompat).map { FakeUiccCardInfoCompat(it) }
 
     private suspend inline fun tryOpenChannelWithKnownAids(
-        supportsMultiSE: Boolean,
         openFn: (ByteArray, EuiccChannel.SecureElementId) -> EuiccChannel?
     ): List<EuiccChannel> {
         var isdrAidList =
@@ -100,10 +99,9 @@ open class DefaultEuiccChannelManager(
                     ret.add(channel)
                     openedAids.add(aid)
 
-                    // Don't try opening more than 1 channel unless we support multi SE or
-                    // there is a vendor implementation for deciding when we should stop
-                    // opening more channels
-                    if (!supportsMultiSE || vendorDecider == null) {
+                    // Don't try opening more than 1 channel unless there is a vendor
+                    // implementation for deciding when we should stop opening more channels
+                    if (vendorDecider == null) {
                         break@outer
                     }
                 }
@@ -149,9 +147,9 @@ open class DefaultEuiccChannelManager(
                 return null
             }
 
-            // This function is not responsible for managing USB channels (see the initial check), so supportsMultiSE is true.
+            // This function is not responsible for managing USB channels (see the initial check)
             val channels =
-                tryOpenChannelWithKnownAids(supportsMultiSE = true) { isdrAid, seId ->
+                tryOpenChannelWithKnownAids { isdrAid, seId ->
                     euiccChannelFactory.tryOpenEuiccChannel(
                         port,
                         isdrAid,
@@ -379,8 +377,7 @@ open class DefaultEuiccChannelManager(
                     UsbCcidContext.createFromUsbDevice(context, device, iface) ?: return@forEach
 
                 try {
-                    // TODO: We should also support multiple SEs over USB readers (the code here already does, UI doesn't yet)
-                    val channels = tryOpenChannelWithKnownAids(supportsMultiSE = false) { isdrAid, seId ->
+                    val channels = tryOpenChannelWithKnownAids { isdrAid, seId ->
                         euiccChannelFactory.tryOpenUsbEuiccChannel(ccidCtx, isdrAid, seId)
                     }
                     if (channels.isNotEmpty() && channels[0].valid) {

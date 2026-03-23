@@ -1,6 +1,6 @@
 <resources>
     <string name="compatibility_check">兼容性检查</string>
-    <string name="open_sim_toolkit">打开 SIM 卡应用程序</string>
+    <string name="open_sim_toolkit">打开 STK 菜单</string>
     <string name="toast_ara_m_copied">ARA-M SHA-1 已拷贝到剪贴板</string>
     <string name="toast_prompt_to_enable_sim_toolkit">请启用您的 “%s” 应用程序</string>
     <string name="quick_compatibility">简易兼容性检测</string>
@@ -14,4 +14,6 @@
     <string name="quick_compatibility_button_continue">继续</string>
     <string name="quick_compatibility_skip">不再显示此消息</string>
     <string name="quick_compatibility_unknown">未知</string>
+    <string name="shortcut_sim_toolkit">STK 菜单</string>
+    <string name="shortcut_sim_toolkit_with_slot">STK 菜单 #%d</string>
 </resources>

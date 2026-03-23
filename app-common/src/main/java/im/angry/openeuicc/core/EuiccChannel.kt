@@ -86,13 +86,6 @@ interface EuiccChannel {
     val atr: ByteArray?
 
     /**
-     * Intrinsic name of this channel. For device-internal SIM slots,
-     * this should be null; for USB readers, this should be the name of
-     * the reader device.
-     */
-    val intrinsicChannelName: String?
-
-    /**
      * The underlying APDU interface for this channel
      */
     val apduInterface: ApduInterface

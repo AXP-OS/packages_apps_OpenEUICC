@@ -76,13 +76,11 @@ class EuiccInfoActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
             intent.getParcelableExtra("seId")
         } ?: EuiccChannel.SecureElementId.DEFAULT
 
-        val channelTitle = if (logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
-            getString(R.string.channel_type_usb)
-        } else {
-            appContainer.customizableTextProvider.formatNonUsbChannelName(logicalSlotId)
-        }
-
-        title = getString(R.string.euicc_info_activity_title, channelTitle)
+        setChannelTitle(
+            if (logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID)
+                getString(R.string.channel_name_format_usb) else
+                appContainer.customizableTextProvider.formatNonUsbChannelName(logicalSlotId)
+        )
 
         swipeRefresh.setOnRefreshListener { refresh() }
 
@@ -103,6 +101,10 @@ class EuiccInfoActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
         else -> super.onOptionsItemSelected(item)
     }
 
+    private fun setChannelTitle(title: CharSequence) {
+        super.setTitle(getString(R.string.euicc_info_activity_title, title))
+    }
+
     override fun onInit() {
         refresh()
     }
@@ -112,13 +114,14 @@ class EuiccInfoActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
 
         lifecycleScope.launch {
             euiccChannelManager.withEuiccChannel(logicalSlotId, seId) { channel ->
-                // When the chip multi-SE, we need to include seId in the title (because we don't have access
-                // to hasMultipleSE in the onCreate() function, we need to do it here).
-                // TODO: Move channel formatting to somewhere centralized and remove this hack. (And also, of course, add support for USB)
-                if (channel.hasMultipleSE && logicalSlotId != EuiccChannelManager.USB_CHANNEL_ID) {
+                if (channel.hasMultipleSE) {
                     withContext(Dispatchers.Main) {
-                        title =
+                        val title = if (logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
+                            getString(R.string.channel_name_format_usb_se, seId.id)
+                        } else {
                             appContainer.customizableTextProvider.formatNonUsbChannelNameWithSeId(logicalSlotId, seId)
+                        }
+                        setChannelTitle(title)
                     }
                 }
 
@@ -166,7 +169,7 @@ class EuiccInfoActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
             // FS.27 v2.0, Security Guidelines for UICC Profiles (Page 25 of 27, 2024-01-30)
             // https://www.gsma.com/solutions-and-impact/technologies/security/wp-content/uploads/2024/01/FS.27-Security-Guidelines-for-UICC-Credentials-v2.0-FINAL-23-July.pdf#page=25
             val resId = when {
-                signers.isEmpty() -> R.string.euicc_info_unknown // the case is not mp, but it's is not common
+                signers.isEmpty() -> R.string.euicc_info_unknown // the case is not mp, but it is not common
                 PKID_GSMA_LIVE_CI.any(signers::contains) -> R.string.euicc_info_ci_gsma_live
                 PKID_GSMA_TEST_CI.any(signers::contains) -> R.string.euicc_info_ci_gsma_test
                 else -> R.string.euicc_info_ci_unknown

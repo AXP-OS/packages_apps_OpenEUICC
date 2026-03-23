@@ -189,4 +189,6 @@
     <string name="download_wizard_error_suggest_contact_carrier">請聯絡您的電信業者尋求協助。</string>
     <string name="download_wizard_error_suggest_contact_reissue">請聯絡您的電信業者重新簽發此 eSIM 設定檔。</string>
     <string name="channel_name_format_se">虛擬卡槽 %1$d, SE %2$d</string>
+    <string name="channel_name_format_usb">USB 讀卡機</string>
+    <string name="channel_name_format_usb_se">USB 讀卡機, SE %d</string>
 </resources>

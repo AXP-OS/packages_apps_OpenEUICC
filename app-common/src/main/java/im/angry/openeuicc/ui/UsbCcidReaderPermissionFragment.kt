@@ -14,24 +14,22 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.commit
 import androidx.lifecycle.lifecycleScope
 import im.angry.openeuicc.common.R
-import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.core.EuiccChannelManager
 import im.angry.openeuicc.util.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * A wrapper fragment over EuiccManagementFragment where we handle
- * logic specific to USB devices. This is mainly USB permission
- * requests, and the fact that USB devices may or may not be
- * available by the time the user selects it from MainActivity.
+ * A fragment to handle USB reader-specific permission flow. If/after
+ * permission is granted, this fragment simply calls back to MainActivity
+ * to instantiate the corresponding EuiccManagementFragment(s) for the USB
+ * reader.
  *
  * Having this fragment allows MainActivity to be (mostly) agnostic
  * of the underlying implementation of different types of channels.
@@ -41,7 +39,7 @@ import kotlinx.coroutines.withContext
  * Note that for now we assume there will only be one USB card reader
  * device. This is also an implicit assumption in EuiccChannelManager.
  */
-class UsbCcidReaderFragment : Fragment(), OpenEuiccContextMarker {
+class UsbCcidReaderPermissionFragment : Fragment(), OpenEuiccContextMarker {
     companion object {
         const val ACTION_USB_PERMISSION = "im.angry.openeuicc.USB_PERMISSION"
     }
@@ -70,7 +68,7 @@ class UsbCcidReaderFragment : Fragment(), OpenEuiccContextMarker {
 
     private lateinit var text: TextView
     private lateinit var permissionButton: Button
-    private lateinit var loadingProgress: ProgressBar
+    private lateinit var loadingProgress: View
 
     private var usbDevice: UsbDevice? = null
 
@@ -143,27 +141,20 @@ class UsbCcidReaderFragment : Fragment(), OpenEuiccContextMarker {
             euiccChannelManager.tryOpenUsbEuiccChannel()
         }
 
-        loadingProgress.visibility = View.GONE
-
         usbDevice = device
 
         if (device != null && !canOpen && !usbManager.hasPermission(device)) {
+            loadingProgress.visibility = View.GONE
             text.text = getString(R.string.usb_permission_needed)
             text.visibility = View.VISIBLE
             permissionButton.visibility = View.VISIBLE
         } else if (device != null && canOpen) {
-            childFragmentManager.commit {
-                replace(
-                    R.id.child_container,
-                    appContainer.uiComponentFactory.createEuiccManagementFragment(
-                        slotId = EuiccChannelManager.USB_CHANNEL_ID,
-                        portId = 0,
-                        // TODO: What if a USB card has multiple SEs?
-                        seId = EuiccChannel.SecureElementId.DEFAULT
-                    )
-                )
+            val seIds = withContext(Dispatchers.IO) {
+                euiccChannelManager.flowEuiccSecureElements(EuiccChannelManager.USB_CHANNEL_ID, 0).toList()
             }
+            (requireActivity() as MainActivity).instantiateUsbTabs(seIds)
         } else {
+            loadingProgress.visibility = View.GONE
             text.text = getString(R.string.usb_failed)
             text.visibility = View.VISIBLE
             permissionButton.visibility = View.GONE

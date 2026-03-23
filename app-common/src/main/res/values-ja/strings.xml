@@ -195,4 +195,6 @@
     <string name="pref_info_website">公式サイト</string>
     <string name="pref_info_source_code">ソースコード</string>
     <string name="channel_name_format_se">論理スロット %1$d, SE %2$d</string>
+    <string name="channel_name_format_usb">USB リーダー</string>
+    <string name="channel_name_format_usb_se">USB リーダー, SE %d</string>
 </resources>

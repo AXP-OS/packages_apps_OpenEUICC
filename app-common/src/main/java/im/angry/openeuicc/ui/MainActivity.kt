@@ -26,6 +26,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import im.angry.openeuicc.common.R
+import im.angry.openeuicc.core.EuiccChannel
 import im.angry.openeuicc.core.EuiccChannelManager
 import im.angry.openeuicc.ui.wizard.DownloadWizardActivity
 import im.angry.openeuicc.util.*
@@ -51,18 +52,30 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
     private var refreshing = false
 
     private data class Page(
+        val id: Long,
         val logicalSlotId: Int,
         val title: String,
         val createFragment: () -> Fragment
     )
 
     private val pages: MutableList<Page> = mutableListOf()
+    private var nextPageId = 0L
+
+    private fun newPage(
+        logicalSlotId: Int,
+        title: String,
+        createFragment: () -> Fragment
+    ): Page = Page(nextPageId++, logicalSlotId, title, createFragment)
 
     private val pagerAdapter by lazy {
         object : FragmentStateAdapter(this) {
             override fun getItemCount() = pages.size
 
             override fun createFragment(position: Int): Fragment = pages[position].createFragment()
+
+            override fun getItemId(position: Int): Long = pages[position].id
+
+            override fun containsItem(itemId: Long): Boolean = pages.any { it.id == itemId }
         }
     }
 
@@ -178,7 +191,7 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
                     } else {
                         appContainer.customizableTextProvider.formatNonUsbChannelName(channel.logicalSlotId)
                     }
-                    newPages.add(Page(channel.logicalSlotId, channelName) {
+                    newPages.add(newPage(channel.logicalSlotId, channelName) {
                         appContainer.uiComponentFactory.createEuiccManagementFragment(
                             slotId,
                             portId,
@@ -192,9 +205,8 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
         // If USB readers exist, add them at the very last
         // We use a wrapper fragment to handle logic specific to USB readers
         usbDevice?.let {
-            val productName = it.productName ?: getString(R.string.channel_type_usb)
-            newPages.add(Page(EuiccChannelManager.USB_CHANNEL_ID, productName) {
-                UsbCcidReaderFragment()
+            newPages.add(newPage(EuiccChannelManager.USB_CHANNEL_ID, getString(R.string.channel_name_format_usb)) {
+                UsbCcidReaderPermissionFragment()
             })
         }
         viewPager.visibility = View.VISIBLE
@@ -202,7 +214,7 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
         if (newPages.size > 1) {
             tabs.visibility = View.VISIBLE
         } else if (newPages.isEmpty()) {
-            newPages.add(Page(-1, "") {
+            newPages.add(newPage(-1, "") {
                 appContainer.uiComponentFactory.createNoEuiccPlaceholderFragment()
             })
         }
@@ -259,5 +271,36 @@ open class MainActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker {
             .setIntent(DownloadWizardActivity.newIntent(this).apply { action = Intent.ACTION_VIEW })
             .build()
         return listOf(downloadShortcut)
+    }
+
+    fun instantiateUsbTabs(seIds: List<EuiccChannel.SecureElementId>) {
+        val existingUsbPageIndex = pages.indexOfFirst { it.logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID }
+        if (existingUsbPageIndex == -1) return
+
+        val usbPages =
+            seIds.map { seId ->
+                val name = if (seIds.size == 1) {
+                    getString(R.string.channel_name_format_usb)
+                } else {
+                    getString(R.string.channel_name_format_usb_se, seId.id)
+                }
+                newPage(EuiccChannelManager.USB_CHANNEL_ID, name) {
+                    appContainer.uiComponentFactory.createEuiccManagementFragment(
+                        EuiccChannelManager.USB_CHANNEL_ID,
+                        0,
+                        seId
+                    )
+                }
+            }
+
+        // Add before removing to avoid out-of-bounds problems
+        pages.addAll(existingUsbPageIndex, usbPages)
+        // Remove the old USB reader page
+        pages.removeAt(existingUsbPageIndex + usbPages.size)
+
+        if (pages.size > 1) {
+            tabs.visibility = View.VISIBLE
+        }
+        pagerAdapter.notifyDataSetChanged()
     }
 }

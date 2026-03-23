@@ -31,9 +31,9 @@ internal object LpacJni {
     external fun es10bDeleteNotification(handle: Long, seqNumber: Long): Int
 
     // es9p + es10b
-    // We do not expose all of the functions because of tediousness :)
+    // We do not expose all the functions because of tediousness :)
     external fun downloadProfile(
-        handle: Long, smdp: String, matchingId: String?, imei: String?,
+        handle: Long, address: String, matchingId: String?, imei: String?,
         confirmationCode: String?, callback: ProfileDownloadCallback
     ): Int
 

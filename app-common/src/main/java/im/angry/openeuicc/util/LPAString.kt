@@ -7,7 +7,7 @@ data class LPAString(
     val confirmationCodeRequired: Boolean,
 ) {
     companion object {
-        fun parse(input: String): LPAString {
+        fun parse(input: CharSequence): LPAString {
             var token = input
             if (token.startsWith("LPA:", ignoreCase = true)) token = token.drop(4)
             val components = token.split('$').map { it.trim().ifBlank { null } }

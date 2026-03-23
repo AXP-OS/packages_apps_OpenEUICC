@@ -72,15 +72,11 @@ class NotificationsActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker 
             intent.getParcelableExtra("seId")
         } ?: EuiccChannel.SecureElementId.DEFAULT
 
-        // This is slightly different from the MainActivity logic
-        // due to the length (we don't want to display the full USB product name)
-        val channelTitle = if (logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
-            getString(R.string.channel_type_usb)
-        } else {
-            appContainer.customizableTextProvider.formatNonUsbChannelName(logicalSlotId)
-        }
-
-        title = getString(R.string.profile_notifications_detailed_format, channelTitle)
+        setChannelTitle(
+            if (logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID)
+                getString(R.string.channel_name_format_usb) else
+                appContainer.customizableTextProvider.formatNonUsbChannelName(logicalSlotId)
+        )
 
         swipeRefresh.setOnRefreshListener {
             refresh()
@@ -116,6 +112,10 @@ class NotificationsActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker 
             else -> super.onOptionsItemSelected(item)
         }
 
+    private fun setChannelTitle(title: CharSequence) {
+        super.setTitle(getString(R.string.profile_notifications_detailed_format, title))
+    }
+
     private fun launchTask(task: suspend () -> Unit) {
         swipeRefresh.isRefreshing = true
 
@@ -133,10 +133,14 @@ class NotificationsActivity : BaseEuiccAccessActivity(), OpenEuiccContextMarker 
     private fun refresh() {
         launchTask {
             notificationAdapter.notifications = withEuiccChannel { channel ->
-                if (channel.hasMultipleSE && logicalSlotId != EuiccChannelManager.USB_CHANNEL_ID) {
+                if (channel.hasMultipleSE) {
                     withContext(Dispatchers.Main) {
-                        title =
+                        val channelTitle = if (logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
+                            getString(R.string.channel_name_format_usb_se, seId.id)
+                        } else {
                             appContainer.customizableTextProvider.formatNonUsbChannelNameWithSeId(logicalSlotId, seId)
+                        }
+                        setChannelTitle(channelTitle)
                     }
                 }
 

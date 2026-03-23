@@ -1,6 +1,7 @@
 package net.typeblog.lpac_jni.impl
 
 import android.util.Log
+import net.typeblog.lpac_jni.ProfileDownloadInput
 import net.typeblog.lpac_jni.ApduInterface
 import net.typeblog.lpac_jni.EuiccInfo2
 import net.typeblog.lpac_jni.HttpInterface
@@ -9,6 +10,7 @@ import net.typeblog.lpac_jni.LocalProfileAssistant
 import net.typeblog.lpac_jni.LocalProfileInfo
 import net.typeblog.lpac_jni.LocalProfileNotification
 import net.typeblog.lpac_jni.LpacJni
+import net.typeblog.lpac_jni.ProfileClass
 import net.typeblog.lpac_jni.ProfileDownloadCallback
 import net.typeblog.lpac_jni.Version
 import java.util.concurrent.locks.ReentrantLock
@@ -117,7 +119,7 @@ class LocalProfileAssistantImpl(
             val ret = mutableListOf<LocalProfileInfo>()
             while (curr != 0L) {
                 val state = LocalProfileInfo.State.fromString(LpacJni.profileGetStateString(curr))
-                val clazz = LocalProfileInfo.Clazz.fromString(LpacJni.profileGetClassString(curr))
+                val clazz = ProfileClass.fromString(LpacJni.profileGetClassString(curr))
                 ret.add(
                     LocalProfileInfo(
                         LpacJni.profileGetIccid(curr),
@@ -214,16 +216,13 @@ class LocalProfileAssistantImpl(
         LpacJni.es10cDeleteProfile(contextHandle, iccid) == 0
     }
 
-    override fun downloadProfile(
-        smdp: String, matchingId: String?, imei: String?,
-        confirmationCode: String?, callback: ProfileDownloadCallback
-    ) = lock.withLock {
+    override fun downloadProfile(input: ProfileDownloadInput, callback: ProfileDownloadCallback) = lock.withLock {
         val res = LpacJni.downloadProfile(
             contextHandle,
-            smdp,
-            matchingId,
-            imei,
-            confirmationCode,
+            input.address,
+            input.matchingId,
+            input.imei,
+            input.confirmationCode,
             callback
         )
 

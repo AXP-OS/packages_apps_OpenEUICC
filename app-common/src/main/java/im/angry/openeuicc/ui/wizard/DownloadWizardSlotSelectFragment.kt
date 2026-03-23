@@ -41,7 +41,6 @@ class DownloadWizardSlotSelectFragment : DownloadWizardActivity.DownloadWizardSt
         val freeSpace: Int,
         val imei: String,
         val enabledProfileName: String?,
-        val intrinsicChannelName: String?,
     ) {
         // A synthetic slot ID used to uniquely identify this slot + SE chip in the download process
         // We assume we don't have anywhere near 2^16 ports...
@@ -115,7 +114,6 @@ class DownloadWizardSlotSelectFragment : DownloadWizardActivity.DownloadWizardSt
                             ""
                         },
                         channel.lpa.profiles.enabled?.displayName,
-                        channel.intrinsicChannelName,
                     )
                 }
             }
@@ -188,7 +186,11 @@ class DownloadWizardSlotSelectFragment : DownloadWizardActivity.DownloadWizardSt
             }
 
             title.text = if (item.logicalSlotId == EuiccChannelManager.USB_CHANNEL_ID) {
-                item.intrinsicChannelName ?: root.context.getString(R.string.channel_type_usb)
+                if (item.hasMultipleSEs) {
+                    root.context.getString(R.string.channel_name_format_usb_se, item.seId.id)
+                } else {
+                    root.context.getString(R.string.channel_name_format_usb)
+                }
             } else if (item.hasMultipleSEs) {
                 appContainer.customizableTextProvider.formatNonUsbChannelNameWithSeId(
                     item.logicalSlotId,

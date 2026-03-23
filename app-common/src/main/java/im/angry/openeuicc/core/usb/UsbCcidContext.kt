@@ -20,7 +20,6 @@ class UsbCcidContext private constructor(
     private val conn: UsbDeviceConnection,
     private val bulkIn: UsbEndpoint,
     private val bulkOut: UsbEndpoint,
-    val productName: String,
     val verboseLoggingFlow: Flow<Boolean>
 ) {
     companion object {
@@ -38,7 +37,6 @@ class UsbCcidContext private constructor(
                 conn,
                 bulkIn,
                 bulkOut,
-                usbDevice.productName ?: "USB",
                 context.preferenceRepository.verboseLoggingFlow
             )
         }.getOrNull()
