@@ -46,6 +46,12 @@
     <string name="profile_download_confirmation_code_required">确认码 (必须)</string>
     <string name="profile_download_imei">IMEI (可选)</string>
     <string name="download_wizard_error_suggest_network_unreachable">请连接到其他网络（例如在 Wi-Fi 和数据之间切换）后重试。</string>
+    <string name="deep_link_confirmation">深度链接确认</string>
+    <string name="deep_link_confirmation_dialog_title">设置您的 eSIM</string>
+    <string name="deep_link_confirmation_dialog_description">"设置所需的一些设备信息将被发送到运营商。"</string>
+    <string name="deep_link_confirmation_cancel_button">取消</string>
+    <string name="deep_link_confirmation_setup_button">设置</string>
+    <string name="deep_link_confirmation_unable_to_read_url">"eSIM 的设置链接有问题，请联系您的运营商寻求帮助。"</string>
     <string name="logs_saved_message">日志已保存到指定路径。需要通过其他 App 分享吗？</string>
     <string name="profile_rename_new_name">新昵称</string>
     <string name="profile_rename_encoding_error">无法将昵称编码为 UTF-8</string>
@@ -82,8 +88,13 @@
     <string name="pref_advanced_verbose_logging_desc">详细日志中包含敏感信息，开启此功能后请仅与你信任的人共享你的日志。</string>
     <string name="pref_advanced_force_tpdu_mode">强制 USB 读卡器使用 TPDU 模式</string>
     <string name="pref_advanced_force_tpdu_mode_desc">强制所有 USB CCID 读卡器使用 TPDU 模式。仅在您的 USB 读卡器仅支持 TPDU 模式时启用。</string>
+    <string name="pref_advanced_language">语言</string>
+    <string name="pref_advanced_language_desc">选择 App 语言</string>
     <string name="pref_advanced_logs">日志</string>
     <string name="pref_advanced_logs_desc">查看应用程序的最新调试日志</string>
+    <string name="pref_advanced_http_proxy">HTTP 代理</string>
+    <string name="pref_advanced_http_proxy_desc">用于出站请求的 HTTP 代理</string>
+    <string name="pref_advanced_http_proxy_dialog_message">代理服务器地址应采用此格式 \"http://&lt;host&gt;:&lt;port&gt;\"。留空则表示禁用代理。</string>
     <string name="pref_developer_isdr_aid_list_desc">某些品牌的可移除 eSIM 可能会使用自己的非标准 ISD-R AID，导致第三方应用无法访问。此 App 可以尝试使用此列表中添加的非标准 AID，但不能保证它们一定有效。</string>
     <string name="pref_developer_es10x_mss_desc">全局 ES10x MSS</string>
     <string-array name="pref_developer_es10x_entry_keys">
@@ -103,6 +114,8 @@
     <string name="download_wizard">下载向导</string>
     <string name="download_wizard_back">返回</string>
     <string name="download_wizard_next">下一步</string>
+    <string name="download_wizard_low_power">低电量警告</string>
+    <string name="download_wizard_low_power_content">由于电量不足或电池电量低时突然关机，<b>您的下载过程可能会意外中断</b>。\n\n如果您认为继续下载无风险请点击 “<b>下一步</b>” 以开始下载。</string>
     <string name="download_wizard_slot_removed">您选择的 SIM 已被移除</string>
     <string name="download_wizard_slot_select">请选择或确认下载目标 eSIM 卡槽:</string>
     <string name="download_wizard_slot_type">类型:</string>
@@ -150,8 +163,6 @@
     <string name="euicc_info_no">否</string>
     <string name="developer_options_steps">还有 %d 步成为开发者</string>
     <string name="developer_options_enabled">你现在是开发者了！</string>
-    <string name="pref_advanced_language">语言</string>
-    <string name="pref_advanced_language_desc">选择 App 语言</string>
     <string name="pref_developer">开发者选项</string>
     <string name="pref_developer_refresh_after_switch_desc">切换配置文件后是否向基带发送刷新命令。如果发现崩溃，请尝试禁用此功能。</string>
     <string name="pref_developer_unfiltered_profile_list">显示未经过滤的配置文件列表</string>

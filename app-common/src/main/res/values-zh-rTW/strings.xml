@@ -46,6 +46,12 @@
     <string name="profile_download_confirmation_code_required">確認碼 (必須)</string>
     <string name="profile_download_imei">IMEI (可選)</string>
     <string name="download_wizard_error_suggest_network_unreachable">請連線到其他網路（例如在 Wi-Fi 和行動網路之間切換）後重試。</string>
+    <string name="deep_link_confirmation">深層連結確認</string>
+    <string name="deep_link_confirmation_dialog_title">設定您的 eSIM</string>
+    <string name="deep_link_confirmation_dialog_description">"設定所需的一些裝置資訊將被傳送到電信業者。"</string>
+    <string name="deep_link_confirmation_cancel_button">取消</string>
+    <string name="deep_link_confirmation_setup_button">設定</string>
+    <string name="deep_link_confirmation_unable_to_read_url">"eSIM 的設定連結有問題，請聯絡您的電信業者尋求協助。"</string>
     <string name="logs_saved_message">日誌已儲存到指定路徑。需要透過其他 App 分享嗎？</string>
     <string name="profile_rename_new_name">新名稱</string>
     <string name="profile_rename_encoding_error">無法將名稱編碼為 UTF-8</string>
@@ -78,6 +84,9 @@
     <string name="pref_advanced_verbose_logging_desc">詳細日誌中包含敏感資訊，開啟此功能後請僅與你信任的人共享你的日誌。</string>
     <string name="pref_advanced_force_tpdu_mode">強制 USB 讀卡機使用 TPDU 模式</string>
     <string name="pref_advanced_force_tpdu_mode_desc">強制所有 USB CCID 讀卡機使用 TPDU 模式。僅在您的 USB 讀卡機僅支援 TPDU 模式時啟用。</string>
+    <string name="pref_advanced_http_proxy">HTTP 代理伺服器</string>
+    <string name="pref_advanced_http_proxy_desc">用於出站請求的 HTTP 代理</string>
+    <string name="pref_advanced_http_proxy_dialog_message">代理伺服器的格式應為「http://&lt;host&gt;:&lt;port&gt;」。若要「停用」代理伺服器，請保持空白。</string>
     <string name="pref_advanced_logs">日誌</string>
     <string name="pref_advanced_logs_desc">檢視應用程式的最新除錯日誌</string>
     <string name="pref_notifications_switch_desc">傳送 <i>切換</i> 設定檔的通知\n注意，這個狀態的通知不一定有用。</string>
@@ -99,6 +108,8 @@
     <string name="download_wizard">下載精靈</string>
     <string name="download_wizard_back">返回</string>
     <string name="download_wizard_next">下一步</string>
+    <string name="download_wizard_low_power">低電量警告</string>
+    <string name="download_wizard_low_power_content">由於電量不足或電池電量低時突然關機，<b>您的下載過程可能會意外中斷</b>。\n\n如果您認為繼續下載無風險請點選「<b>下一步</b>」以開始下載。</string>
     <string name="download_wizard_slot_removed">您選擇的 SIM 卡已被移除</string>
     <string name="download_wizard_slot_select">請選擇或確認下載目標 eSIM 卡槽:</string>
     <string name="download_wizard_slot_type">類型:</string>

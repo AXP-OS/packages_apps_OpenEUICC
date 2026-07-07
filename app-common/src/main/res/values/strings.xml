@@ -74,6 +74,8 @@
     <string name="download_wizard">Download Wizard</string>
     <string name="download_wizard_back">Back</string>
     <string name="download_wizard_next">Next</string>
+    <string name="download_wizard_low_power">WARNING: Low Battery</string>
+    <string name="download_wizard_low_power_content">Your download process may be unexpectedly interrupted due to sudden shutdown.\n\nClick "Next" to acknowledge this risk and continue download.</string>
     <string name="download_wizard_slot_removed">Selected SIM has been removed</string>
     <string name="download_wizard_slot_select">Select or confirm the eSIM you would like to download to:</string>
     <string name="download_wizard_slot_type">Type:</string>
@@ -128,6 +130,13 @@
     <string name="download_wizard_error_suggest_contact_carrier">Please contact your carrier for assistance.</string>
     <string name="download_wizard_error_suggest_contact_reissue">Please contact your carrier to reissue this eSIM profile.</string>
     <string name="download_wizard_error_suggest_network_unreachable">Please try again after connecting to a different network (e.g. switching between Wi-Fi and data).</string>
+
+    <string name="deep_link_confirmation">Deep Link Confirmation</string>
+    <string name="deep_link_confirmation_dialog_title">Setup your eSIM</string>
+    <string name="deep_link_confirmation_dialog_description">"Some device info that's needed for setup will be sent to your carrier."</string>
+    <string name="deep_link_confirmation_cancel_button">Cancel</string>
+    <string name="deep_link_confirmation_setup_button">Setup</string>
+    <string name="deep_link_confirmation_unable_to_read_url">"There's an issue with the setup link for your eSIM. Contact your carrier for help."</string>
 
     <string name="logs_saved_message">Logs have been saved to the selected path. Would you like to share the log through another app?</string>
 
@@ -214,6 +223,9 @@
     <string name="pref_advanced_language_desc">Select app language</string>
     <string name="pref_advanced_logs">Logs</string>
     <string name="pref_advanced_logs_desc">View recent debug logs of the application</string>
+    <string name="pref_advanced_http_proxy">HTTP Proxy</string>
+    <string name="pref_advanced_http_proxy_desc">HTTP proxy for outgoing requests</string>
+    <string name="pref_advanced_http_proxy_dialog_message">Specify a proxy in the format \"http://&lt;host&gt;:&lt;port&gt;\". Leave blank to DISABLE.</string>
     <string name="pref_developer">Developer Options</string>
     <string name="pref_developer_refresh_after_switch">Send refresh command to modem</string>
     <string name="pref_developer_refresh_after_switch_desc">Whether to send a refresh command to the modem after switching profiles. Try disabling this if you see crashes.</string>
